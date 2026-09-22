@@ -11,6 +11,7 @@
 #include <QString>
 #include <QStringList>
 
+namespace au::aicore { struct JobStatus; }
 namespace au::aijobs { class RuntimeHostSupervisor; }
 
 namespace au::aistudio {
@@ -48,8 +49,7 @@ private:
     void copyGlobalLibraryAssetToProject(const QString& projectPath, const QString& assetId);
     void refreshWorkspaceStatus();
     void refreshLibraryAssets();
-    void recordJobState(const QString& jobId, const QString& state, const QString& resultManifest = QString());
-    void recordCompletedJob(const QString& jobId, const QString& resultManifest);
+    void recordJobStatus(const au::aicore::JobStatus& status);
     void insertTestJobOutput();
     std::shared_ptr<au::aijobs::RuntimeHostSupervisor> m_runtimeHost;
     QString m_activeWorkspace;

@@ -6,12 +6,18 @@
 #include "iruntimeclient.h"
 
 namespace au::aijobs {
-// Gate 1 placeholder. Gate 2 replaces this with an authenticated loopback
-// client; keeping the same interface makes UI and controller tests deterministic.
+// Deterministic client for UI and controller tests. It never reaches a process.
 class FakeRuntimeClient final : public IRuntimeClient
 {
 public:
     RuntimeStatus status() const override;
     int protocolVersion() const override;
+    bool isBusy() const override;
+    void setJobStatusHandler(JobStatusHandler handler) override;
+    bool submit(const aicore::JobRequest& request, QString* errorMessage = nullptr) override;
+    bool cancel(const QString& jobId, QString* errorMessage = nullptr) override;
+
+private:
+    JobStatusHandler m_handler;
 };
 }

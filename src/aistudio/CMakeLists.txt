@@ -12,7 +12,7 @@ set(MODULE_SRC
     ${CMAKE_CURRENT_LIST_DIR}/view/aistudiostatusmodel.h
 )
 
-set(MODULE_LINK aijobs aiproject ailibrary context)
+set(MODULE_LINK aijobs aiproject ailibrary aicore context)
 set(MODULE_USE_UNITY OFF)
 
 setup_module()

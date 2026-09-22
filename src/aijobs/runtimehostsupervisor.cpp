@@ -3,8 +3,10 @@
  */
 #include "runtimehostsupervisor.h"
 
+#include <QAbstractSocket>
 #include <QCoreApplication>
 #include <QDir>
+#include <QHostAddress>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcess>
@@ -12,6 +14,8 @@
 #include <QTcpSocket>
 #include <QTimer>
 #include <QUuid>
+
+#include <utility>
 
 using namespace au::aijobs;
 
@@ -37,6 +41,7 @@ RuntimeHostSupervisor::RuntimeHostSupervisor(QObject* parent)
             const QString failedJobId = m_activeJobId;
             m_activeJobId.clear();
             emit testJobFailed(failedJobId);
+            notifyJobStatus(aicore::JobState::Failed, failedJobId);
             setStatus(tr("Runtime host stopped while the test provider job was running"));
         }
     });
@@ -44,18 +49,17 @@ RuntimeHostSupervisor::RuntimeHostSupervisor(QObject* parent)
         while (m_process->canReadLine()) {
             const auto message = QJsonDocument::fromJson(m_process->readLine().trimmed()).object();
             const int port = message.value("port").toInt();
-            if (port > 0 && message.value("protocolVersion").toInt() == 1) {
+            if (port > 0 && message.value("protocolVersion").toInt() == au::aicore::AI_RUNTIME_PROTOCOL_VERSION) {
                 connectHealthCheck(static_cast<quint16>(port));
             }
         }
     });
     connect(m_socket, &QTcpSocket::connected, this, [this] {
-        const QJsonObject healthRequest {
+        writeRequest(QJsonObject {
             { "token", m_token },
-            { "protocolVersion", 1 },
+            { "protocolVersion", au::aicore::AI_RUNTIME_PROTOCOL_VERSION },
             { "action", "health" }
-        };
-        m_socket->write(QJsonDocument(healthRequest).toJson(QJsonDocument::Compact) + '\n');
+        }, nullptr);
     });
     connect(m_socket, &QTcpSocket::readyRead, this, [this] {
         while (m_socket->canReadLine()) {
@@ -67,14 +71,20 @@ RuntimeHostSupervisor::RuntimeHostSupervisor(QObject* parent)
             } else if (response.value("ok").toBool() && code == "accepted") {
                 m_activeJobId = response.value("jobId").toString();
                 emit testJobAccepted(m_activeJobId);
+                notifyJobStatus(au::aicore::JobState::Running, m_activeJobId);
                 setStatus(tr("Test provider job running"));
             } else if (response.value("ok").toBool() && code == "complete") {
+                const QString jobId = response.value("jobId").toString();
+                const QString resultManifest = response.value("resultManifest").toString();
                 m_activeJobId.clear();
-                emit testJobCompleted(response.value("jobId").toString(), response.value("resultManifest").toString());
+                emit testJobCompleted(jobId, resultManifest);
+                notifyJobStatus(au::aicore::JobState::Complete, jobId, resultManifest);
                 setStatus(tr("Test provider job complete"));
             } else if (response.value("ok").toBool() && code == "cancelled") {
+                const QString jobId = response.value("jobId").toString();
                 m_activeJobId.clear();
-                emit testJobCancelled(response.value("jobId").toString());
+                emit testJobCancelled(jobId);
+                notifyJobStatus(au::aicore::JobState::Cancelled, jobId);
                 setStatus(tr("Test provider job cancelled"));
             } else {
                 setStatus(tr("Runtime host request failed"));
@@ -132,51 +142,94 @@ void RuntimeHostSupervisor::restartInWorkspace(const QString& workspace)
     start();
 }
 
+bool RuntimeHostSupervisor::isBusy() const
+{
+    return !m_activeJobId.isEmpty();
+}
+
+RuntimeStatus RuntimeHostSupervisor::status() const
+{
+    return m_healthy ? RuntimeStatus::Healthy : RuntimeStatus::Unavailable;
+}
+
+int RuntimeHostSupervisor::protocolVersion() const
+{
+    return au::aicore::AI_RUNTIME_PROTOCOL_VERSION;
+}
+
+void RuntimeHostSupervisor::setJobStatusHandler(JobStatusHandler handler)
+{
+    m_jobStatusHandler = std::move(handler);
+}
+
+bool RuntimeHostSupervisor::submit(const aicore::JobRequest& request, QString* errorMessage)
+{
+    if (m_socket->state() != QAbstractSocket::ConnectedState || !m_healthy) {
+        if (errorMessage) {
+            *errorMessage = tr("Runtime host is not ready for a provider job");
+        }
+        return false;
+    }
+    m_activeProviderId = QString::fromStdString(request.providerId);
+    setStatus(tr("Submitting provider job"));
+    return writeRequest(QJsonObject {
+        { "token", m_token },
+        { "protocolVersion", au::aicore::AI_RUNTIME_PROTOCOL_VERSION },
+        { "action", "submit-job" },
+        { "providerId", m_activeProviderId },
+        { "parameters", QString::fromStdString(request.parametersJson) }
+    }, errorMessage);
+}
+
+bool RuntimeHostSupervisor::cancel(const QString& jobId, QString* errorMessage)
+{
+    if (m_socket->state() != QAbstractSocket::ConnectedState || jobId.isEmpty()) {
+        if (errorMessage) {
+            *errorMessage = tr("No provider job is running");
+        }
+        return false;
+    }
+    setStatus(tr("Cancelling provider job"));
+    return writeRequest(QJsonObject {
+        { "token", m_token },
+        { "protocolVersion", au::aicore::AI_RUNTIME_PROTOCOL_VERSION },
+        { "action", "cancel" },
+        { "jobId", jobId }
+    }, errorMessage);
+}
+
 void RuntimeHostSupervisor::submitTestJob()
 {
-    if (m_socket->state() != QAbstractSocket::ConnectedState || m_status != tr("Runtime host healthy")) {
-        setStatus(tr("Runtime host is not ready for a test job"));
-        return;
+    QString error;
+    if (!submit(aicore::JobRequest { "test-provider", "{}" }, &error)) {
+        setStatus(error);
     }
-
-    const QJsonObject request {
-        { "token", m_token },
-        { "protocolVersion", 1 },
-        { "action", "test-job" }
-    };
-    setStatus(tr("Submitting test provider job"));
-    m_socket->write(QJsonDocument(request).toJson(QJsonDocument::Compact) + '\n');
 }
 
 void RuntimeHostSupervisor::submitFailureTest()
 {
-    if (m_socket->state() != QAbstractSocket::ConnectedState || m_status != tr("Runtime host healthy")) {
+    if (m_socket->state() != QAbstractSocket::ConnectedState || !m_healthy) {
         setStatus(tr("Runtime host is not ready for a failure test"));
         return;
     }
-    const QJsonObject request {
-        { "token", m_token },
-        { "protocolVersion", 1 },
-        { "action", "test-worker-failure" }
-    };
     setStatus(tr("Submitting worker-failure test"));
-    m_socket->write(QJsonDocument(request).toJson(QJsonDocument::Compact) + '\n');
+    writeRequest(QJsonObject {
+        { "token", m_token },
+        { "protocolVersion", au::aicore::AI_RUNTIME_PROTOCOL_VERSION },
+        { "action", "test-worker-failure" }
+    }, nullptr);
 }
 
 void RuntimeHostSupervisor::cancelTestJob()
 {
-    if (m_socket->state() != QAbstractSocket::ConnectedState || m_activeJobId.isEmpty()) {
-        setStatus(tr("No test provider job is running"));
+    if (m_activeJobId.isEmpty()) {
+        setStatus(tr("No provider job is running"));
         return;
     }
-    const QJsonObject request {
-        { "token", m_token },
-        { "protocolVersion", 1 },
-        { "action", "cancel" },
-        { "jobId", m_activeJobId }
-    };
-    setStatus(tr("Cancelling test provider job"));
-    m_socket->write(QJsonDocument(request).toJson(QJsonDocument::Compact) + '\n');
+    QString error;
+    if (!cancel(m_activeJobId, &error)) {
+        setStatus(error);
+    }
 }
 
 QString RuntimeHostSupervisor::statusText() const
@@ -186,11 +239,38 @@ QString RuntimeHostSupervisor::statusText() const
 
 void RuntimeHostSupervisor::setStatus(const QString& status)
 {
+    m_healthy = (status == tr("Runtime host healthy"));
     if (m_status == status) {
         return;
     }
     m_status = status;
     emit statusChanged(m_status);
+}
+
+bool RuntimeHostSupervisor::writeRequest(const QJsonObject& request, QString* errorMessage)
+{
+    if (m_socket->state() != QAbstractSocket::ConnectedState) {
+        if (errorMessage) {
+            *errorMessage = tr("Runtime host is not connected");
+        }
+        return false;
+    }
+    m_socket->write(QJsonDocument(request).toJson(QJsonDocument::Compact) + '\n');
+    return true;
+}
+
+void RuntimeHostSupervisor::notifyJobStatus(aicore::JobState state, const QString& jobId,
+                                            const QString& resultManifest)
+{
+    if (!m_jobStatusHandler) {
+        return;
+    }
+    aicore::JobStatus status;
+    status.id.value = jobId.toStdString();
+    status.providerId = (m_activeProviderId.isEmpty() ? QStringLiteral("test-provider") : m_activeProviderId).toStdString();
+    status.state = state;
+    status.resultManifest = resultManifest.toStdString();
+    m_jobStatusHandler(status);
 }
 
 void RuntimeHostSupervisor::connectHealthCheck(quint16 port)

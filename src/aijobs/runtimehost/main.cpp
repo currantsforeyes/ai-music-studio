@@ -89,6 +89,13 @@ public:
                         const QString action = request.value("action").toString();
                         if (action == "health") {
                             socket->write(response(true, "healthy", { { "state", "healthy" } }));
+                        } else if (action == "submit-job") {
+                            const QString providerId = request.value("providerId").toString();
+                            if (providerId == "test-provider") {
+                                startTestJob(socket);
+                            } else {
+                                socket->write(response(false, "unknown-provider", { { "providerId", providerId } }));
+                            }
                         } else if (action == "test-job") {
                             startTestJob(socket);
                         } else if (action == "test-worker-failure") {

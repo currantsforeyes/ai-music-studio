@@ -5,6 +5,8 @@
 
 #include <QObject>
 
+#include "aicore/aicoretypes.h"
+#include "aijobs/jobstore.h"
 #include "aijobs/runtimehostsupervisor.h"
 #include "ailibrary/globalassetcatalogue.h"
 #include "ailibrary/libraryassetstore.h"
@@ -96,6 +98,7 @@ void AIStudioController::init()
     AIStudioStatusModel::instance()->setRuntimeStatus(m_runtimeHost->statusText());
     QObject::connect(m_runtimeHost.get(), &au::aijobs::RuntimeHostSupervisor::statusChanged,
                      AIStudioStatusModel::instance(), &AIStudioStatusModel::setRuntimeStatus);
+    m_runtimeHost->setJobStatusHandler([this](const au::aicore::JobStatus& status) { recordJobStatus(status); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::testJobRequested,
                      m_runtimeHost.get(), &au::aijobs::RuntimeHostSupervisor::submitTestJob);
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::testJobCancelRequested,
@@ -158,16 +161,6 @@ void AIStudioController::init()
                      m_runtimeHost.get(), [this](const QString& projectPath, const QString& assetId) {
         copyGlobalLibraryAssetToProject(projectPath, assetId);
     });
-    QObject::connect(m_runtimeHost.get(), &au::aijobs::RuntimeHostSupervisor::testJobCompleted,
-                     m_runtimeHost.get(), [this](const QString& jobId, const QString& resultManifest) {
-        recordCompletedJob(jobId, resultManifest);
-    });
-    QObject::connect(m_runtimeHost.get(), &au::aijobs::RuntimeHostSupervisor::testJobAccepted,
-                     m_runtimeHost.get(), [this](const QString& jobId) { recordJobState(jobId, "running"); });
-    QObject::connect(m_runtimeHost.get(), &au::aijobs::RuntimeHostSupervisor::testJobCancelled,
-                     m_runtimeHost.get(), [this](const QString& jobId) { recordJobState(jobId, "cancelled"); });
-    QObject::connect(m_runtimeHost.get(), &au::aijobs::RuntimeHostSupervisor::testJobFailed,
-                     m_runtimeHost.get(), [this](const QString& jobId) { recordJobState(jobId, "failed"); });
     dispatcher()->reg(this, OPEN_JOBS_CODE, this, &AIStudioController::openJobs);
 }
 
@@ -219,7 +212,7 @@ void AIStudioController::refreshWorkspaceStatus()
     } else if (au::aiproject::WorkspaceStore::isEnabled(projectPath)) {
         m_activeWorkspace = au::aiproject::WorkspaceStore::workspacePathForProject(projectPath);
         QString error;
-        const int recovered = au::aiproject::WorkspaceStore::recoverInterruptedJobs(m_activeWorkspace, &error);
+        const int recovered = au::aijobs::JobStore::recoverInterrupted(m_activeWorkspace, &error);
         if (recovered > 0) {
             AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Recovered %1 interrupted AI job(s)").arg(recovered));
         } else if (recovered < 0) {
@@ -782,19 +775,16 @@ void AIStudioController::addLibraryAssetToTimeline(const QString& assetId)
                                                         .arg(found->name));
 }
 
-void AIStudioController::recordCompletedJob(const QString& jobId, const QString& resultManifest)
-{
-    recordJobState(jobId, "complete", resultManifest);
-}
-
-void AIStudioController::recordJobState(const QString& jobId, const QString& state, const QString& resultManifest)
+void AIStudioController::recordJobStatus(const au::aicore::JobStatus& status)
 {
     if (m_activeWorkspace.isEmpty()) {
         return;
     }
     QString error;
-    if (au::aiproject::WorkspaceStore::recordJobState(m_activeWorkspace, jobId, "test-provider", state, resultManifest, &error)) {
-        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Test provider job %1 in the AI workspace").arg(state));
+    if (au::aijobs::JobStore::upsert(m_activeWorkspace, status, &error)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(
+            QObject::tr("Provider job %1 in the AI workspace")
+                .arg(QString::fromStdString(au::aicore::toString(status.state))));
     } else {
         AIStudioStatusModel::instance()->setWorkspaceStatus(error);
     }
@@ -812,7 +802,7 @@ void AIStudioController::insertTestJobOutput()
         return;
     }
     QString error;
-    const QString assetPath = au::aiproject::WorkspaceStore::completedJobAssetPath(m_activeWorkspace, "test-provider-job", &error);
+    const QString assetPath = au::aijobs::JobStore::resultAssetPath(m_activeWorkspace, "test-provider-job", &error);
     if (assetPath.isEmpty()) {
         AIStudioStatusModel::instance()->setWorkspaceStatus(error);
         return;
@@ -821,7 +811,7 @@ void AIStudioController::insertTestJobOutput()
         AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Could not insert the test-provider output"));
         return;
     }
-    if (au::aiproject::WorkspaceStore::markJobInserted(m_activeWorkspace, "test-provider-job", &error)) {
+    if (au::aijobs::JobStore::markInserted(m_activeWorkspace, "test-provider-job", &error)) {
         AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Test provider output inserted as a new track"));
     } else {
         AIStudioStatusModel::instance()->setWorkspaceStatus(error);
