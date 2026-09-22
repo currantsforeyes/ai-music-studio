@@ -114,6 +114,26 @@ TEST(SongPlanStoreTests, NextRevisionIncrementsFromLatest)
     EXPECT_EQ(next.revision, 2);
 }
 
+TEST(SongPlanStoreTests, ListsPlanIdsAndLoadsLatest)
+{
+    QTemporaryDir workspace;
+    ASSERT_TRUE(workspace.isValid());
+
+    QString error;
+    ASSERT_TRUE(SongPlanStore::saveRevision(workspace.path(), makePlan(), &error));
+    SongPlan second = makePlan();
+    second.revision = 2;
+    second.key = "D";
+    ASSERT_TRUE(SongPlanStore::saveRevision(workspace.path(), second, &error));
+
+    EXPECT_EQ(SongPlanStore::planIds(workspace.path(), &error), QStringList({ "plan-1" }));
+
+    SongPlan latest;
+    ASSERT_TRUE(SongPlanStore::loadLatest(workspace.path(), "plan-1", &latest, &error)) << error.toStdString();
+    EXPECT_EQ(latest.revision, 2);
+    EXPECT_EQ(latest.key, "D");
+}
+
 TEST(SongPlanTests, ValidateReportsStructuralProblems)
 {
     SongPlan plan = makePlan();

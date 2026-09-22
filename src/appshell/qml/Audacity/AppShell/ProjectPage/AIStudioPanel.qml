@@ -228,6 +228,73 @@ Item {
             text: qsTrc("aistudio", "AI jobs appear here with live progress.")
         }
 
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 1
+            color: ui.theme.strokeColor
+        }
+
+        StyledTextLabel {
+            Layout.fillWidth: true
+            text: qsTrc("aistudio", "Song Plans")
+            font: ui.theme.bodyBoldFont
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            TextField {
+                id: planNameField
+                Layout.fillWidth: true
+                placeholderText: qsTrc("aistudio", "Plan name")
+            }
+
+            FlatButton {
+                text: qsTrc("aistudio", "Create plan")
+                onClicked: AIStudioStatus.createPlan(planNameField.text)
+            }
+        }
+
+        FlatButton {
+            text: qsTrc("aistudio", "Refresh plans")
+            onClicked: AIStudioStatus.refreshPlans()
+        }
+
+        ListView {
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.min(contentHeight, 150)
+            clip: true
+            spacing: 6
+            model: AIStudioStatus.plans
+
+            delegate: Column {
+                width: ListView.view.width
+                spacing: 2
+
+                StyledTextLabel {
+                    width: parent.width
+                    elide: Text.ElideRight
+                    text: modelData.id
+                    font: ui.theme.bodyBoldFont
+                }
+                StyledTextLabel {
+                    width: parent.width
+                    elide: Text.ElideRight
+                    text: qsTrc("aistudio", "rev %1 · %2 BPM · %3 · %4 sections")
+                          .arg(modelData.revision).arg(modelData.tempo).arg(modelData.key).arg(modelData.sections)
+                    font: ui.theme.bodyFont
+                }
+            }
+        }
+
+        StyledTextLabel {
+            Layout.fillWidth: true
+            visible: AIStudioStatus.plans.length === 0
+            wrapMode: Text.Wrap
+            text: qsTrc("aistudio", "Song plans created here keep immutable revisions.")
+        }
+
         StyledTextLabel {
             Layout.fillWidth: true
             wrapMode: Text.Wrap

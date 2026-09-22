@@ -12,6 +12,8 @@
 #include "ailibrary/libraryassetstore.h"
 #include "aiproject/aiworkspace.h"
 #include "aistudio/view/aistudiostatusmodel.h"
+#include "songplan/songplan.h"
+#include "songplan/songplanstore.h"
 
 #include <QDateTime>
 #include <QDesktopServices>
@@ -165,6 +167,10 @@ void AIStudioController::init()
                      m_runtimeHost.get(), [this](const QString& jobId) { retryJob(jobId); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::jobInsertRequested,
                      m_runtimeHost.get(), [this](const QString& jobId) { insertJobOutput(jobId); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::plansRefreshRequested,
+                     m_runtimeHost.get(), [this] { refreshPlans(); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::planCreateRequested,
+                     m_runtimeHost.get(), [this](const QString& name) { createPlan(name); });
     dispatcher()->reg(this, OPEN_JOBS_CODE, this, &AIStudioController::openJobs);
 }
 
@@ -201,6 +207,7 @@ void AIStudioController::enableProjectWorkspace()
     AIStudioStatusModel::instance()->setLibraryStatus(QObject::tr("Library ready for project imports"));
     refreshLibraryAssets();
     refreshJobs();
+    refreshPlans();
     m_runtimeHost->restartInWorkspace(workspace);
 }
 
@@ -213,6 +220,7 @@ void AIStudioController::refreshWorkspaceStatus()
         AIStudioStatusModel::instance()->setLibraryAssets({});
         AIStudioStatusModel::instance()->setLibraryFolders({});
         AIStudioStatusModel::instance()->setJobs({});
+        AIStudioStatusModel::instance()->setPlans({});
         AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Save the project before enabling its AI workspace"));
         AIStudioStatusModel::instance()->setLibraryStatus(QObject::tr("No project Library is available"));
     } else if (au::aiproject::WorkspaceStore::isEnabled(projectPath)) {
@@ -229,11 +237,13 @@ void AIStudioController::refreshWorkspaceStatus()
         }
         refreshLibraryAssets();
         refreshJobs();
+        refreshPlans();
     } else {
         m_activeWorkspace.clear();
         AIStudioStatusModel::instance()->setLibraryAssets({});
         AIStudioStatusModel::instance()->setLibraryFolders({});
         AIStudioStatusModel::instance()->setJobs({});
+        AIStudioStatusModel::instance()->setPlans({});
         AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("AI workspace not enabled for this project"));
         AIStudioStatusModel::instance()->setLibraryStatus(QObject::tr("Enable the project AI workspace to use its Library"));
     }
@@ -893,4 +903,56 @@ void AIStudioController::insertJobOutput(const QString& jobId)
     } else {
         AIStudioStatusModel::instance()->setWorkspaceStatus(error);
     }
+}
+
+void AIStudioController::refreshPlans()
+{
+    if (m_activeWorkspace.isEmpty()) {
+        AIStudioStatusModel::instance()->setPlans({});
+        return;
+    }
+    QString error;
+    const QStringList ids = au::songplan::SongPlanStore::planIds(m_activeWorkspace, &error);
+    if (!error.isEmpty()) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
+        return;
+    }
+    QVariantList rows;
+    for (const QString& id : ids) {
+        au::songplan::SongPlan plan;
+        QString loadError;
+        if (!au::songplan::SongPlanStore::loadLatest(m_activeWorkspace, id, &plan, &loadError)) {
+            continue;
+        }
+        rows.append(QVariantMap {
+            { "id", plan.id },
+            { "revision", plan.revision },
+            { "tempo", plan.tempo },
+            { "key", plan.key },
+            { "sections", plan.sections.size() },
+            { "chords", plan.chords.size() },
+            { "melody", plan.melody.size() }
+        });
+    }
+    AIStudioStatusModel::instance()->setPlans(rows);
+}
+
+void AIStudioController::createPlan(const QString& name)
+{
+    if (m_activeWorkspace.isEmpty()) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Enable the project AI workspace before creating a song plan"));
+        return;
+    }
+    au::songplan::SongPlan plan;
+    const QString cleanName = name.trimmed();
+    plan.id = cleanName.isEmpty() ? QUuid::createUuid().toString(QUuid::WithoutBraces) : cleanName;
+    plan.revision = 1;
+    plan.sourceFormat = "other";
+    QString error;
+    if (!au::songplan::SongPlanStore::saveRevision(m_activeWorkspace, plan, &error)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
+        return;
+    }
+    AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Created song plan %1").arg(plan.id));
+    refreshPlans();
 }

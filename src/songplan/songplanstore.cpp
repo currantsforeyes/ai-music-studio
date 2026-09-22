@@ -229,3 +229,28 @@ SongPlan SongPlanStore::nextRevision(const QString& workspacePath, const SongPla
     copy.revision = latestRevision(workspacePath, plan.id, errorMessage) + 1;
     return copy;
 }
+
+bool SongPlanStore::loadLatest(const QString& workspacePath, const QString& planId,
+                               SongPlan* plan, QString* errorMessage)
+{
+    const int revision = latestRevision(workspacePath, planId, errorMessage);
+    if (revision <= 0) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("No song plan revisions were found");
+        }
+        return false;
+    }
+    return loadRevision(workspacePath, planId, revision, plan, errorMessage);
+}
+
+QStringList SongPlanStore::planIds(const QString& workspacePath, QString* errorMessage)
+{
+    Q_UNUSED(errorMessage);
+    const QDir root(QDir(workspacePath).filePath(PLAN_DIRECTORY));
+    if (!root.exists()) {
+        return {};
+    }
+    QStringList ids = root.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    ids.sort();
+    return ids;
+}

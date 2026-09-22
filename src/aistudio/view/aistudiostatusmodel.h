@@ -18,6 +18,7 @@ class AIStudioStatusModel final : public QObject
     Q_PROPERTY(QStringList libraryFolders READ libraryFolders NOTIFY libraryFoldersChanged)
     Q_PROPERTY(QString libraryStatus READ libraryStatus NOTIFY libraryStatusChanged)
     Q_PROPERTY(QVariantList jobs READ jobs NOTIFY jobsChanged)
+    Q_PROPERTY(QVariantList plans READ plans NOTIFY plansChanged)
 
 public:
     static AIStudioStatusModel* instance();
@@ -29,6 +30,7 @@ public:
     QStringList libraryFolders() const;
     QString libraryStatus() const;
     QVariantList jobs() const;
+    QVariantList plans() const;
     void setRuntimeStatus(const QString& status);
     void setWorkspaceStatus(const QString& status);
     void setLibraryAssets(const QVariantList& assets);
@@ -36,6 +38,7 @@ public:
     void setLibraryFolders(const QStringList& folders);
     void setLibraryStatus(const QString& status);
     void setJobs(const QVariantList& jobs);
+    void setPlans(const QVariantList& plans);
 
     Q_INVOKABLE void runTestJob();
     Q_INVOKABLE void runWorkerFailureTest();
@@ -62,6 +65,8 @@ public:
     Q_INVOKABLE void cancelJob(const QString& jobId);
     Q_INVOKABLE void retryJob(const QString& jobId);
     Q_INVOKABLE void insertJobOutput(const QString& jobId);
+    Q_INVOKABLE void refreshPlans();
+    Q_INVOKABLE void createPlan(const QString& name);
 
 signals:
     void runtimeStatusChanged();
@@ -96,6 +101,9 @@ signals:
     void jobCancelRequested(const QString& jobId);
     void jobRetryRequested(const QString& jobId);
     void jobInsertRequested(const QString& jobId);
+    void plansChanged();
+    void plansRefreshRequested();
+    void planCreateRequested(const QString& name);
 
 private:
     AIStudioStatusModel();
@@ -106,5 +114,6 @@ private:
     QStringList m_libraryFolders;
     QString m_libraryStatus;
     QVariantList m_jobs;
+    QVariantList m_plans;
 };
 }

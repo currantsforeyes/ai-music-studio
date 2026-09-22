@@ -56,6 +56,11 @@ QVariantList AIStudioStatusModel::jobs() const
     return m_jobs;
 }
 
+QVariantList AIStudioStatusModel::plans() const
+{
+    return m_plans;
+}
+
 void AIStudioStatusModel::setRuntimeStatus(const QString& status)
 {
     if (m_runtimeStatus == status) {
@@ -117,6 +122,15 @@ void AIStudioStatusModel::setJobs(const QVariantList& jobs)
     }
     m_jobs = jobs;
     emit jobsChanged();
+}
+
+void AIStudioStatusModel::setPlans(const QVariantList& plans)
+{
+    if (m_plans == plans) {
+        return;
+    }
+    m_plans = plans;
+    emit plansChanged();
 }
 
 void AIStudioStatusModel::runTestJob()
@@ -282,4 +296,14 @@ void AIStudioStatusModel::insertJobOutput(const QString& jobId)
     if (!jobId.isEmpty()) {
         emit jobInsertRequested(jobId);
     }
+}
+
+void AIStudioStatusModel::refreshPlans()
+{
+    emit plansRefreshRequested();
+}
+
+void AIStudioStatusModel::createPlan(const QString& name)
+{
+    emit planCreateRequested(name);
 }
