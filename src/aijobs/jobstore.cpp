@@ -51,12 +51,12 @@ bool saveManifest(const QString& workspacePath, const QJsonObject& root, QString
     return true;
 }
 
-QJsonObject toJson(const aicore::JobStatus& status)
+QJsonObject toJson(const au::aicore::JobStatus& status)
 {
     return {
         { "jobId", QString::fromStdString(status.id.value) },
         { "providerId", QString::fromStdString(status.providerId) },
-        { "state", QString::fromStdString(aicore::toString(status.state)) },
+        { "state", QString::fromStdString(au::aicore::toString(status.state)) },
         { "progress", status.progress },
         { "message", QString::fromStdString(status.message) },
         { "resultManifest", QString::fromStdString(status.resultManifest) },
@@ -65,7 +65,7 @@ QJsonObject toJson(const aicore::JobStatus& status)
     };
 }
 
-bool fromJson(const QJsonObject& value, aicore::JobStatus* status)
+bool fromJson(const QJsonObject& value, au::aicore::JobStatus* status)
 {
     if (!status) {
         return false;
@@ -75,8 +75,8 @@ bool fromJson(const QJsonObject& value, aicore::JobStatus* status)
         return false;
     }
     status->providerId = value.value("providerId").toString().toStdString();
-    aicore::JobState state = aicore::JobState::Queued;
-    if (aicore::jobStateFromString(value.value("state").toString().toStdString(), &state)) {
+    au::aicore::JobState state = au::aicore::JobState::Queued;
+    if (au::aicore::jobStateFromString(value.value("state").toString().toStdString(), &state)) {
         status->state = state;
     }
     status->progress = value.value("progress").toDouble();
@@ -88,7 +88,7 @@ bool fromJson(const QJsonObject& value, aicore::JobStatus* status)
 }
 }
 
-bool JobStore::upsert(const QString& workspacePath, const aicore::JobStatus& status, QString* errorMessage)
+bool JobStore::upsert(const QString& workspacePath, const au::aicore::JobStatus& status, QString* errorMessage)
 {
     if (workspacePath.isEmpty() || status.id.value.empty()) {
         if (errorMessage) {
@@ -123,15 +123,15 @@ bool JobStore::upsert(const QString& workspacePath, const aicore::JobStatus& sta
     return saveManifest(workspacePath, root, errorMessage);
 }
 
-QList<aicore::JobStatus> JobStore::jobs(const QString& workspacePath, QString* errorMessage)
+QList<au::aicore::JobStatus> JobStore::jobs(const QString& workspacePath, QString* errorMessage)
 {
     QJsonObject root;
     if (!readManifest(workspacePath, &root, errorMessage)) {
         return {};
     }
-    QList<aicore::JobStatus> result;
+    QList<au::aicore::JobStatus> result;
     for (const QJsonValue& value : root.value("jobs").toArray()) {
-        aicore::JobStatus status;
+        au::aicore::JobStatus status;
         if (fromJson(value.toObject(), &status)) {
             result.append(status);
         }
@@ -139,7 +139,7 @@ QList<aicore::JobStatus> JobStore::jobs(const QString& workspacePath, QString* e
     return result;
 }
 
-bool JobStore::find(const QString& workspacePath, const QString& jobId, aicore::JobStatus* status,
+bool JobStore::find(const QString& workspacePath, const QString& jobId, au::aicore::JobStatus* status,
                     QString* errorMessage)
 {
     QJsonObject root;
@@ -168,12 +168,12 @@ int JobStore::recoverInterrupted(const QString& workspacePath, QString* errorMes
     int recovered = 0;
     for (qsizetype index = 0; index < jobs.size(); ++index) {
         QJsonObject job = jobs.at(index).toObject();
-        aicore::JobState state = aicore::JobState::Queued;
-        if (!aicore::jobStateFromString(job.value("state").toString().toStdString(), &state)
-            || aicore::isTerminal(state)) {
+        au::aicore::JobState state = au::aicore::JobState::Queued;
+        if (!au::aicore::jobStateFromString(job.value("state").toString().toStdString(), &state)
+            || au::aicore::isTerminal(state)) {
             continue;
         }
-        job.insert("state", QString::fromStdString(aicore::toString(aicore::JobState::Interrupted)));
+        job.insert("state", QString::fromStdString(au::aicore::toString(au::aicore::JobState::Interrupted)));
         jobs.replace(index, job);
         ++recovered;
     }
@@ -243,8 +243,8 @@ QString JobStore::resultAssetPath(const QString& workspacePath, const QString& j
         if (job.value("jobId").toString() != jobId) {
             continue;
         }
-        aicore::JobStatus status;
-        if (!fromJson(job, &status) || status.state != aicore::JobState::Complete) {
+        au::aicore::JobStatus status;
+        if (!fromJson(job, &status) || status.state != au::aicore::JobState::Complete) {
             if (errorMessage) {
                 *errorMessage = QObject::tr("The AI job is not complete");
             }
