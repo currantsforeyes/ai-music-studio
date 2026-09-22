@@ -101,10 +101,6 @@ void AIStudioController::init()
     m_runtimeHost->setJobStatusHandler([this](const au::aicore::JobStatus& status) { recordJobStatus(status); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::testJobRequested,
                      m_runtimeHost.get(), &au::aijobs::RuntimeHostSupervisor::submitTestJob);
-    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::testJobCancelRequested,
-                     m_runtimeHost.get(), &au::aijobs::RuntimeHostSupervisor::cancelTestJob);
-    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::testJobInsertRequested,
-                     m_runtimeHost.get(), [this] { insertTestJobOutput(); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::workerFailureTestRequested,
                      m_runtimeHost.get(), &au::aijobs::RuntimeHostSupervisor::submitFailureTest);
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::workspaceEnableRequested,
@@ -894,34 +890,6 @@ void AIStudioController::insertJobOutput(const QString& jobId)
     if (au::aijobs::JobStore::markInserted(m_activeWorkspace, jobId, &error)) {
         AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Provider output inserted as a new track"));
         refreshJobs();
-    } else {
-        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
-    }
-}
-
-void AIStudioController::insertTestJobOutput()
-{
-    if (m_activeWorkspace.isEmpty()) {
-        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Enable the project AI workspace before inserting provider output"));
-        return;
-    }
-    const auto project = globalContext()->currentProject();
-    if (!project) {
-        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Open a project before inserting provider output"));
-        return;
-    }
-    QString error;
-    const QString assetPath = au::aijobs::JobStore::resultAssetPath(m_activeWorkspace, "test-provider-job", &error);
-    if (assetPath.isEmpty()) {
-        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
-        return;
-    }
-    if (!project->import(muse::io::path_t(assetPath), false)) {
-        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Could not insert the test-provider output"));
-        return;
-    }
-    if (au::aijobs::JobStore::markInserted(m_activeWorkspace, "test-provider-job", &error)) {
-        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Test provider output inserted as a new track"));
     } else {
         AIStudioStatusModel::instance()->setWorkspaceStatus(error);
     }

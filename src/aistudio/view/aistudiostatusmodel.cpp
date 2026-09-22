@@ -124,16 +124,6 @@ void AIStudioStatusModel::runTestJob()
     emit testJobRequested();
 }
 
-void AIStudioStatusModel::cancelTestJob()
-{
-    emit testJobCancelRequested();
-}
-
-void AIStudioStatusModel::insertTestJobOutput()
-{
-    emit testJobInsertRequested();
-}
-
 void AIStudioStatusModel::runWorkerFailureTest()
 {
     emit workerFailureTestRequested();

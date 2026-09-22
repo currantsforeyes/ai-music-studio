@@ -38,8 +38,6 @@ public:
     void setJobs(const QVariantList& jobs);
 
     Q_INVOKABLE void runTestJob();
-    Q_INVOKABLE void cancelTestJob();
-    Q_INVOKABLE void insertTestJobOutput();
     Q_INVOKABLE void runWorkerFailureTest();
     Q_INVOKABLE void enableProjectWorkspace();
     Q_INVOKABLE void refreshLibrary();
@@ -73,8 +71,6 @@ signals:
     void libraryFoldersChanged();
     void libraryStatusChanged();
     void testJobRequested();
-    void testJobCancelRequested();
-    void testJobInsertRequested();
     void workerFailureTestRequested();
     void workspaceEnableRequested();
     void libraryRefreshRequested();

@@ -71,10 +71,10 @@ jobs:
       - name: Build AI unit tests
         run: |
           source $HOME/build_tools/environment.sh
-          ninja -C build.debug aistudio ailibrary_tests aijobs_tests
+          ninja -C build.debug aistudio songplan ailibrary_tests aijobs_tests songplan_tests
 
       - name: Run AI unit tests
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          ctest --test-dir build.debug -R 'ailibrary_tests|aijobs_tests' --output-on-failure
+          ctest --test-dir build.debug -R 'ailibrary_tests|aijobs_tests|songplan_tests' --output-on-failure

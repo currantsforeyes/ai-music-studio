@@ -227,18 +227,6 @@ void RuntimeHostSupervisor::submitFailureTest()
     }, nullptr);
 }
 
-void RuntimeHostSupervisor::cancelTestJob()
-{
-    if (m_activeJobId.isEmpty()) {
-        setStatus(tr("No provider job is running"));
-        return;
-    }
-    QString error;
-    if (!cancel(m_activeJobId, &error)) {
-        setStatus(error);
-    }
-}
-
 QString RuntimeHostSupervisor::statusText() const
 {
     return m_status;

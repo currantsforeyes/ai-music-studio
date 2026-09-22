@@ -133,21 +133,16 @@ Item {
             text: qsTrc("aistudio", "Imported and generated assets stay here even when they are not on the timeline.")
         }
 
+        StyledTextLabel {
+            Layout.fillWidth: true
+            text: qsTrc("aistudio", "Diagnostics")
+            font: ui.theme.bodyBoldFont
+        }
+
         FlatButton {
             text: qsTrc("aistudio", "Run test provider job")
             enabled: AIStudioStatus.runtimeStatus === qsTrc("aistudio", "Runtime host healthy")
             onClicked: AIStudioStatus.runTestJob()
-        }
-
-        FlatButton {
-            text: qsTrc("aistudio", "Cancel test provider job")
-            enabled: AIStudioStatus.runtimeStatus === qsTrc("aistudio", "Test provider job running")
-            onClicked: AIStudioStatus.cancelTestJob()
-        }
-
-        FlatButton {
-            text: qsTrc("aistudio", "Insert completed test output")
-            onClicked: AIStudioStatus.insertTestJobOutput()
         }
 
         FlatButton {

@@ -29,7 +29,6 @@ public:
     void restartInWorkspace(const QString& workspace);
     void submitTestJob();
     void submitFailureTest();
-    void cancelTestJob();
     QString statusText() const;
 
     // IRuntimeClient
