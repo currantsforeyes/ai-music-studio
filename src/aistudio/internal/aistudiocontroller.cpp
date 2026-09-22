@@ -171,6 +171,32 @@ void AIStudioController::init()
                      m_runtimeHost.get(), [this] { refreshPlans(); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::planCreateRequested,
                      m_runtimeHost.get(), [this](const QString& name) { createPlan(name); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::planLoadRequested,
+                     m_runtimeHost.get(), [this](const QString& planId) { loadPlan(planId); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::planMetadataRequested,
+                     m_runtimeHost.get(), [this](double tempo, const QString& key, const QString& timeSignature) {
+        setPlanMetadata(tempo, key, timeSignature);
+    });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::planSectionAddRequested,
+                     m_runtimeHost.get(), [this](const QString& name, double start, double end) {
+        addPlanSection(name, start, end);
+    });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::planSectionRemoveRequested,
+                     m_runtimeHost.get(), [this](int index) { removePlanSection(index); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::planChordAddRequested,
+                     m_runtimeHost.get(), [this](const QString& symbol, double start, double duration) {
+        addPlanChord(symbol, start, duration);
+    });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::planChordRemoveRequested,
+                     m_runtimeHost.get(), [this](int index) { removePlanChord(index); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::planNoteAddRequested,
+                     m_runtimeHost.get(), [this](int midiPitch, double start, double duration, const QString& lyric) {
+        addPlanNote(midiPitch, start, duration, lyric);
+    });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::planNoteRemoveRequested,
+                     m_runtimeHost.get(), [this](int index) { removePlanNote(index); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::planSaveRequested,
+                     m_runtimeHost.get(), [this] { savePlanRevision(); });
     dispatcher()->reg(this, OPEN_JOBS_CODE, this, &AIStudioController::openJobs);
 }
 
@@ -203,6 +229,8 @@ void AIStudioController::enableProjectWorkspace()
 
     const QString workspace = au::aiproject::WorkspaceStore::workspacePathForProject(projectPath);
     m_activeWorkspace = workspace;
+    m_planDraftLoaded = false;
+    AIStudioStatusModel::instance()->setPlanDetail({});
     AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("AI workspace enabled: %1").arg(workspace));
     AIStudioStatusModel::instance()->setLibraryStatus(QObject::tr("Library ready for project imports"));
     refreshLibraryAssets();
@@ -221,10 +249,17 @@ void AIStudioController::refreshWorkspaceStatus()
         AIStudioStatusModel::instance()->setLibraryFolders({});
         AIStudioStatusModel::instance()->setJobs({});
         AIStudioStatusModel::instance()->setPlans({});
+        m_planDraftLoaded = false;
+        AIStudioStatusModel::instance()->setPlanDetail({});
         AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Save the project before enabling its AI workspace"));
         AIStudioStatusModel::instance()->setLibraryStatus(QObject::tr("No project Library is available"));
     } else if (au::aiproject::WorkspaceStore::isEnabled(projectPath)) {
-        m_activeWorkspace = au::aiproject::WorkspaceStore::workspacePathForProject(projectPath);
+        const QString workspacePath = au::aiproject::WorkspaceStore::workspacePathForProject(projectPath);
+        if (m_activeWorkspace != workspacePath) {
+            m_planDraftLoaded = false;
+            AIStudioStatusModel::instance()->setPlanDetail({});
+        }
+        m_activeWorkspace = workspacePath;
         QString error;
         const int recovered = au::aijobs::JobStore::recoverInterrupted(m_activeWorkspace, &error);
         if (recovered > 0) {
@@ -244,6 +279,8 @@ void AIStudioController::refreshWorkspaceStatus()
         AIStudioStatusModel::instance()->setLibraryFolders({});
         AIStudioStatusModel::instance()->setJobs({});
         AIStudioStatusModel::instance()->setPlans({});
+        m_planDraftLoaded = false;
+        AIStudioStatusModel::instance()->setPlanDetail({});
         AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("AI workspace not enabled for this project"));
         AIStudioStatusModel::instance()->setLibraryStatus(QObject::tr("Enable the project AI workspace to use its Library"));
     }
@@ -955,4 +992,181 @@ void AIStudioController::createPlan(const QString& name)
     }
     AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Created song plan %1").arg(plan.id));
     refreshPlans();
+}
+
+void AIStudioController::loadPlan(const QString& planId)
+{
+    if (m_activeWorkspace.isEmpty()) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Enable the project AI workspace before editing a song plan"));
+        return;
+    }
+    au::songplan::SongPlan plan;
+    QString error;
+    if (!au::songplan::SongPlanStore::loadLatest(m_activeWorkspace, planId, &plan, &error)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
+        return;
+    }
+    m_planDraft = plan;
+    m_planDraftLoaded = true;
+    pushPlanDetail();
+    AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Editing song plan %1").arg(plan.id));
+}
+
+void AIStudioController::pushPlanDetail()
+{
+    if (!m_planDraftLoaded) {
+        AIStudioStatusModel::instance()->setPlanDetail({});
+        return;
+    }
+    QVariantList sections;
+    for (const au::songplan::SongSection& section : m_planDraft.sections) {
+        sections.append(QVariantMap {
+            { "id", section.id }, { "name", section.name },
+            { "startSeconds", section.startSeconds }, { "endSeconds", section.endSeconds }
+        });
+    }
+    QVariantList chords;
+    for (const au::songplan::ChordEvent& chord : m_planDraft.chords) {
+        chords.append(QVariantMap {
+            { "startSeconds", chord.startSeconds }, { "durationSeconds", chord.durationSeconds },
+            { "symbol", chord.symbol }
+        });
+    }
+    QVariantList melody;
+    for (const au::songplan::NoteEvent& note : m_planDraft.melody) {
+        melody.append(QVariantMap {
+            { "startSeconds", note.startSeconds }, { "durationSeconds", note.durationSeconds },
+            { "midiPitch", note.midiPitch }, { "lyric", note.lyric }
+        });
+    }
+    AIStudioStatusModel::instance()->setPlanDetail(QVariantMap {
+        { "loaded", true },
+        { "id", m_planDraft.id },
+        { "revision", m_planDraft.revision },
+        { "tempo", m_planDraft.tempo },
+        { "key", m_planDraft.key },
+        { "timeSignature", m_planDraft.timeSignature },
+        { "sourceFormat", m_planDraft.sourceFormat },
+        { "sections", sections },
+        { "chords", chords },
+        { "melody", melody }
+    });
+}
+
+void AIStudioController::setPlanMetadata(double tempo, const QString& key, const QString& timeSignature)
+{
+    if (!m_planDraftLoaded) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Select a song plan before editing it"));
+        return;
+    }
+    if (tempo > 0.0) {
+        m_planDraft.tempo = tempo;
+    }
+    if (!key.trimmed().isEmpty()) {
+        m_planDraft.key = key.trimmed();
+    }
+    if (!timeSignature.trimmed().isEmpty()) {
+        m_planDraft.timeSignature = timeSignature.trimmed();
+    }
+    pushPlanDetail();
+}
+
+void AIStudioController::addPlanSection(const QString& name, double startSeconds, double endSeconds)
+{
+    if (!m_planDraftLoaded) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Select a song plan before editing it"));
+        return;
+    }
+    au::songplan::SongSection section;
+    section.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    section.name = name.trimmed().isEmpty() ? QObject::tr("Section") : name.trimmed();
+    section.startSeconds = startSeconds;
+    section.endSeconds = endSeconds;
+    m_planDraft.sections.append(section);
+    pushPlanDetail();
+}
+
+void AIStudioController::removePlanSection(int index)
+{
+    if (!m_planDraftLoaded || index < 0 || index >= m_planDraft.sections.size()) {
+        return;
+    }
+    m_planDraft.sections.removeAt(index);
+    pushPlanDetail();
+}
+
+void AIStudioController::addPlanChord(const QString& symbol, double startSeconds, double durationSeconds)
+{
+    if (!m_planDraftLoaded) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Select a song plan before editing it"));
+        return;
+    }
+    au::songplan::ChordEvent chord;
+    chord.symbol = symbol.trimmed();
+    chord.startSeconds = startSeconds;
+    chord.durationSeconds = durationSeconds;
+    m_planDraft.chords.append(chord);
+    pushPlanDetail();
+}
+
+void AIStudioController::removePlanChord(int index)
+{
+    if (!m_planDraftLoaded || index < 0 || index >= m_planDraft.chords.size()) {
+        return;
+    }
+    m_planDraft.chords.removeAt(index);
+    pushPlanDetail();
+}
+
+void AIStudioController::addPlanNote(int midiPitch, double startSeconds, double durationSeconds, const QString& lyric)
+{
+    if (!m_planDraftLoaded) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Select a song plan before editing it"));
+        return;
+    }
+    au::songplan::NoteEvent note;
+    note.midiPitch = std::max(0, std::min(127, midiPitch));
+    note.startSeconds = startSeconds;
+    note.durationSeconds = durationSeconds;
+    note.lyric = lyric;
+    m_planDraft.melody.append(note);
+    pushPlanDetail();
+}
+
+void AIStudioController::removePlanNote(int index)
+{
+    if (!m_planDraftLoaded || index < 0 || index >= m_planDraft.melody.size()) {
+        return;
+    }
+    m_planDraft.melody.removeAt(index);
+    pushPlanDetail();
+}
+
+void AIStudioController::savePlanRevision()
+{
+    if (!m_planDraftLoaded) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Select a song plan before saving a revision"));
+        return;
+    }
+    QStringList problems;
+    if (!au::songplan::validate(m_planDraft, &problems)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(
+            QObject::tr("The song plan is not valid: %1").arg(problems.join("; ")));
+        return;
+    }
+    QString error;
+    const au::songplan::SongPlan next = au::songplan::SongPlanStore::nextRevision(m_activeWorkspace, m_planDraft, &error);
+    if (!error.isEmpty()) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
+        return;
+    }
+    if (!au::songplan::SongPlanStore::saveRevision(m_activeWorkspace, next, &error)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
+        return;
+    }
+    m_planDraft = next;
+    pushPlanDetail();
+    refreshPlans();
+    AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Saved song plan %1 revision %2")
+                                                        .arg(next.id).arg(next.revision));
 }

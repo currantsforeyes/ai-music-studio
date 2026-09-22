@@ -134,6 +134,52 @@ TEST(SongPlanStoreTests, ListsPlanIdsAndLoadsLatest)
     EXPECT_EQ(latest.key, "D");
 }
 
+TEST(SongPlanStoreTests, EditingCreatesANewImmutableRevision)
+{
+    QTemporaryDir workspace;
+    ASSERT_TRUE(workspace.isValid());
+
+    QString error;
+    ASSERT_TRUE(SongPlanStore::saveRevision(workspace.path(), makePlan(), &error));
+
+    SongPlan draft;
+    ASSERT_TRUE(SongPlanStore::loadLatest(workspace.path(), "plan-1", &draft, &error));
+
+    // Simulate an edit: change tempo and append a chord/note, then save as a
+    // new revision. The original revision must remain untouched.
+    draft.tempo = 140.0;
+    ChordEvent chord;
+    chord.startSeconds = 4.0;
+    chord.durationSeconds = 2.0;
+    chord.symbol = "Am";
+    draft.chords.append(chord);
+    NoteEvent note;
+    note.startSeconds = 4.0;
+    note.durationSeconds = 0.5;
+    note.midiPitch = 64;
+    draft.melody.append(note);
+
+    const SongPlan next = SongPlanStore::nextRevision(workspace.path(), draft, &error);
+    EXPECT_EQ(next.revision, 2);
+    ASSERT_TRUE(SongPlanStore::saveRevision(workspace.path(), next, &error)) << error.toStdString();
+
+    // Revision 1 is unchanged.
+    SongPlan original;
+    ASSERT_TRUE(SongPlanStore::loadRevision(workspace.path(), "plan-1", 1, &original, &error));
+    EXPECT_DOUBLE_EQ(original.tempo, 120.0);
+    ASSERT_EQ(original.chords.size(), 1);
+
+    // Revision 2 has the edits.
+    SongPlan edited;
+    ASSERT_TRUE(SongPlanStore::loadLatest(workspace.path(), "plan-1", &edited, &error));
+    EXPECT_EQ(edited.revision, 2);
+    EXPECT_DOUBLE_EQ(edited.tempo, 140.0);
+    ASSERT_EQ(edited.chords.size(), 2);
+    EXPECT_EQ(edited.chords.back().symbol, "Am");
+    ASSERT_EQ(edited.melody.size(), 2);
+    EXPECT_EQ(edited.melody.back().midiPitch, 64);
+}
+
 TEST(SongPlanTests, ValidateReportsStructuralProblems)
 {
     SongPlan plan = makePlan();

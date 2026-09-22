@@ -7,6 +7,7 @@
 #include "actions/iactionsdispatcher.h"
 #include "context/iglobalcontext.h"
 #include "modularity/ioc.h"
+#include "songplan/songplan.h"
 
 #include <QString>
 #include <QStringList>
@@ -56,7 +57,19 @@ private:
     void insertJobOutput(const QString& jobId);
     void refreshPlans();
     void createPlan(const QString& name);
+    void loadPlan(const QString& planId);
+    void setPlanMetadata(double tempo, const QString& key, const QString& timeSignature);
+    void addPlanSection(const QString& name, double startSeconds, double endSeconds);
+    void removePlanSection(int index);
+    void addPlanChord(const QString& symbol, double startSeconds, double durationSeconds);
+    void removePlanChord(int index);
+    void addPlanNote(int midiPitch, double startSeconds, double durationSeconds, const QString& lyric);
+    void removePlanNote(int index);
+    void savePlanRevision();
+    void pushPlanDetail();
     std::shared_ptr<au::aijobs::RuntimeHostSupervisor> m_runtimeHost;
     QString m_activeWorkspace;
+    au::songplan::SongPlan m_planDraft;
+    bool m_planDraftLoaded = false;
 };
 }

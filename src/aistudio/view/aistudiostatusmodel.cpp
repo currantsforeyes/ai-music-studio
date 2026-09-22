@@ -61,6 +61,11 @@ QVariantList AIStudioStatusModel::plans() const
     return m_plans;
 }
 
+QVariantMap AIStudioStatusModel::planDetail() const
+{
+    return m_planDetail;
+}
+
 void AIStudioStatusModel::setRuntimeStatus(const QString& status)
 {
     if (m_runtimeStatus == status) {
@@ -131,6 +136,15 @@ void AIStudioStatusModel::setPlans(const QVariantList& plans)
     }
     m_plans = plans;
     emit plansChanged();
+}
+
+void AIStudioStatusModel::setPlanDetail(const QVariantMap& planDetail)
+{
+    if (m_planDetail == planDetail) {
+        return;
+    }
+    m_planDetail = planDetail;
+    emit planDetailChanged();
 }
 
 void AIStudioStatusModel::runTestJob()
@@ -306,4 +320,57 @@ void AIStudioStatusModel::refreshPlans()
 void AIStudioStatusModel::createPlan(const QString& name)
 {
     emit planCreateRequested(name);
+}
+
+void AIStudioStatusModel::loadPlan(const QString& planId)
+{
+    if (!planId.isEmpty()) {
+        emit planLoadRequested(planId);
+    }
+}
+
+void AIStudioStatusModel::setPlanMetadata(double tempo, const QString& key, const QString& timeSignature)
+{
+    emit planMetadataRequested(tempo, key, timeSignature);
+}
+
+void AIStudioStatusModel::addPlanSection(const QString& name, double startSeconds, double endSeconds)
+{
+    emit planSectionAddRequested(name, startSeconds, endSeconds);
+}
+
+void AIStudioStatusModel::removePlanSection(int index)
+{
+    if (index >= 0) {
+        emit planSectionRemoveRequested(index);
+    }
+}
+
+void AIStudioStatusModel::addPlanChord(const QString& symbol, double startSeconds, double durationSeconds)
+{
+    emit planChordAddRequested(symbol, startSeconds, durationSeconds);
+}
+
+void AIStudioStatusModel::removePlanChord(int index)
+{
+    if (index >= 0) {
+        emit planChordRemoveRequested(index);
+    }
+}
+
+void AIStudioStatusModel::addPlanNote(int midiPitch, double startSeconds, double durationSeconds, const QString& lyric)
+{
+    emit planNoteAddRequested(midiPitch, startSeconds, durationSeconds, lyric);
+}
+
+void AIStudioStatusModel::removePlanNote(int index)
+{
+    if (index >= 0) {
+        emit planNoteRemoveRequested(index);
+    }
+}
+
+void AIStudioStatusModel::savePlanRevision()
+{
+    emit planSaveRequested();
 }
