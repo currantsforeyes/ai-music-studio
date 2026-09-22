@@ -71,7 +71,7 @@ jobs:
       - name: Build AI unit tests
         run: |
           source $HOME/build_tools/environment.sh
-          ninja -C build.debug ailibrary_tests aijobs_tests
+          ninja -C build.debug aistudio ailibrary_tests aijobs_tests
 
       - name: Run AI unit tests
         env:
