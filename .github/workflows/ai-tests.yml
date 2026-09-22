@@ -13,6 +13,9 @@ on:
       - 'src/ailibrary/**'
       - 'src/aistudio/**'
       - 'src/aimusic/**'
+      - 'src/songplan/**'
+      - 'src/appshell/qml/Audacity/AppShell/ProjectPage/AIStudioPanel.qml'
+      - 'src/appshell/qml/Audacity/AppShell/LibraryPage/**'
       - '.github/workflows/ai-tests.yml'
 
 concurrency:
@@ -38,6 +41,14 @@ jobs:
                 -DARTIFACT_INFO="build.artifacts/" \
                 -P ${CI_DIR}/common/ci_configure.cmake
 
+      - name: Restore ccache
+        id: restore-ccache
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ${{ github.workflow }}-${{ runner.arch }}-ccache-
+          restore-keys: ${{ github.workflow }}-${{ runner.arch }}-ccache-
+
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
@@ -48,12 +59,31 @@ jobs:
           modules: 'qt5compat qtnetworkauth qtshadertools qtwebsockets qtgraphs qtquick3d'
           cache: true
 
+      # Fast syntax validation for the QML we own. Custom Muse modules are not
+      # importable here, so warnings are unlimited (-1) and only real syntax
+      # errors fail the step.
+      - name: Lint AI QML
+        run: |
+          for file in \
+            src/appshell/qml/Audacity/AppShell/ProjectPage/AIStudioPanel.qml \
+            src/appshell/qml/Audacity/AppShell/LibraryPage/LibraryPage.qml; do
+            if [ -f "$file" ]; then
+              echo "qmllint $file"
+              qmllint --max-warnings -1 "$file"
+            fi
+          done
+
       - name: Setup environment
         run: bash ./buildscripts/ci/linux/setup.sh
 
+      - name: Setup ccache
+        run: |
+          sudo apt-get update && sudo apt-get install -y ccache
+          bash ./buildscripts/ci/tools/setup_ccache_config.sh
+
       # Configure the same way the full unit-test job does, but do NOT build
-      # every target. Only the AI test executables and their dependencies are
-      # compiled, which keeps this job to minutes instead of an hour.
+      # every target. Only the AI modules and their tests are compiled, which
+      # keeps this job to minutes instead of an hour.
       - name: Configure unit tests
         run: |
           source $HOME/build_tools/environment.sh
@@ -68,13 +98,24 @@ jobs:
                 -DMUSE_ENABLE_UNIT_TESTS_CODE_COVERAGE=OFF \
                 -DMUSE_MODULE_DIAGNOSTICS_CRASHPAD_CLIENT=OFF
 
-      - name: Build AI unit tests
+      - name: Build AI modules and tests
         run: |
           source $HOME/build_tools/environment.sh
-          ninja -C build.debug ailibrary_tests aijobs_tests
+          ninja -C build.debug aistudio songplan ailibrary_tests aijobs_tests songplan_tests
 
       - name: Run AI unit tests
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          ctest --test-dir build.debug -R 'ailibrary_tests|aijobs_tests' --output-on-failure
+          ctest --test-dir build.debug -R 'ailibrary_tests|aijobs_tests|songplan_tests' --output-on-failure
+
+      - name: Prepare ccache
+        if: always()
+        run: ccache --recompress 10 || true
+
+      - name: Save ccache
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ${{ github.workflow }}-${{ runner.arch }}-ccache-${{ github.run_id }}
