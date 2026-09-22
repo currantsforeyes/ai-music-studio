@@ -1,0 +1,80 @@
+name: 'AI Music Studio: Tests (lean)'
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ai-music-studio
+  pull_request:
+    paths:
+      - 'src/aicore/**'
+      - 'src/aiproject/**'
+      - 'src/aijobs/**'
+      - 'src/ailibrary/**'
+      - 'src/aistudio/**'
+      - 'src/aimusic/**'
+      - '.github/workflows/ai-tests.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI_DIR: buildscripts/ci
+
+jobs:
+  ai_unit_tests:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Configure workflow
+        run: |
+          cmake -DEVENT=${{ github.event_name }} \
+                -DBUILD_MODE="devel_build" \
+                -DARTIFACT_INFO="build.artifacts/" \
+                -P ${CI_DIR}/common/ci_configure.cmake
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.10.1'
+          host: 'linux'
+          target: 'desktop'
+          arch: 'linux_gcc_64'
+          modules: 'qt5compat qtnetworkauth qtshadertools qtwebsockets qtgraphs qtquick3d'
+          cache: true
+
+      - name: Setup environment
+        run: bash ./buildscripts/ci/linux/setup.sh
+
+      # Configure the same way the full unit-test job does, but do NOT build
+      # every target. Only the AI test executables and their dependencies are
+      # compiled, which keeps this job to minutes instead of an hour.
+      - name: Configure unit tests
+        run: |
+          source $HOME/build_tools/environment.sh
+          cmake -S . -B build.debug -GNinja \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -DAU4_BUILD_MODE=dev \
+                -DAU4_BUILD_CONFIGURATION=UTEST \
+                -DCMAKE_INSTALL_PREFIX=../build.install \
+                -DCMAKE_BUILD_NUMBER=0 \
+                -DAU4_REVISION=lean \
+                -DMUSE_ENABLE_UNIT_TESTS=ON \
+                -DMUSE_ENABLE_UNIT_TESTS_CODE_COVERAGE=OFF \
+                -DMUSE_MODULE_DIAGNOSTICS_CRASHPAD_CLIENT=OFF
+
+      - name: Build AI unit tests
+        run: |
+          source $HOME/build_tools/environment.sh
+          ninja -C build.debug ailibrary_tests aijobs_tests
+
+      - name: Run AI unit tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          ctest --test-dir build.debug -R 'ailibrary_tests|aijobs_tests' --output-on-failure
