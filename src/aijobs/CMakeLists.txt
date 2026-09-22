@@ -12,6 +12,7 @@ set(MODULE_SRC
 )
 
 set(MODULE_LINK aicore Qt6::Core)
+set(MODULE_USE_UNITY OFF)
 
 setup_module()
 

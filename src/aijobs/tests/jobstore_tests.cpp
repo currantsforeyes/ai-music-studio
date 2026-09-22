@@ -144,4 +144,3 @@ TEST(JobStoreTests, ResolvesCompletedResultAssetUntilInserted)
 }
 
 }
-}
