@@ -17,6 +17,7 @@ class AIStudioStatusModel final : public QObject
     Q_PROPERTY(QVariantList globalLibraryAssets READ globalLibraryAssets NOTIFY globalLibraryAssetsChanged)
     Q_PROPERTY(QStringList libraryFolders READ libraryFolders NOTIFY libraryFoldersChanged)
     Q_PROPERTY(QString libraryStatus READ libraryStatus NOTIFY libraryStatusChanged)
+    Q_PROPERTY(QVariantList jobs READ jobs NOTIFY jobsChanged)
 
 public:
     static AIStudioStatusModel* instance();
@@ -27,12 +28,14 @@ public:
     QVariantList globalLibraryAssets() const;
     QStringList libraryFolders() const;
     QString libraryStatus() const;
+    QVariantList jobs() const;
     void setRuntimeStatus(const QString& status);
     void setWorkspaceStatus(const QString& status);
     void setLibraryAssets(const QVariantList& assets);
     void setGlobalLibraryAssets(const QVariantList& assets);
     void setLibraryFolders(const QStringList& folders);
     void setLibraryStatus(const QString& status);
+    void setJobs(const QVariantList& jobs);
 
     Q_INVOKABLE void runTestJob();
     Q_INVOKABLE void cancelTestJob();
@@ -57,6 +60,10 @@ public:
     Q_INVOKABLE void revealLibraryAssetInExplorer(const QString& assetId);
     Q_INVOKABLE void addLibraryAssetToTimeline(const QString& assetId);
     Q_INVOKABLE void copyGlobalLibraryAssetToProject(const QString& projectPath, const QString& assetId);
+    Q_INVOKABLE void refreshJobs();
+    Q_INVOKABLE void cancelJob(const QString& jobId);
+    Q_INVOKABLE void retryJob(const QString& jobId);
+    Q_INVOKABLE void insertJobOutput(const QString& jobId);
 
 signals:
     void runtimeStatusChanged();
@@ -88,6 +95,11 @@ signals:
     void libraryAssetRevealRequested(const QString& assetId);
     void libraryAssetInsertionRequested(const QString& assetId);
     void globalLibraryAssetCopyRequested(const QString& projectPath, const QString& assetId);
+    void jobsChanged();
+    void jobsRefreshRequested();
+    void jobCancelRequested(const QString& jobId);
+    void jobRetryRequested(const QString& jobId);
+    void jobInsertRequested(const QString& jobId);
 
 private:
     AIStudioStatusModel();
@@ -97,5 +109,6 @@ private:
     QVariantList m_globalLibraryAssets;
     QStringList m_libraryFolders;
     QString m_libraryStatus;
+    QVariantList m_jobs;
 };
 }

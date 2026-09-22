@@ -50,6 +50,10 @@ private:
     void refreshWorkspaceStatus();
     void refreshLibraryAssets();
     void recordJobStatus(const au::aicore::JobStatus& status);
+    void refreshJobs();
+    void cancelJob(const QString& jobId);
+    void retryJob(const QString& jobId);
+    void insertJobOutput(const QString& jobId);
     void insertTestJobOutput();
     std::shared_ptr<au::aijobs::RuntimeHostSupervisor> m_runtimeHost;
     QString m_activeWorkspace;

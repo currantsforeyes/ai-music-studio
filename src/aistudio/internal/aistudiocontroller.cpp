@@ -161,6 +161,14 @@ void AIStudioController::init()
                      m_runtimeHost.get(), [this](const QString& projectPath, const QString& assetId) {
         copyGlobalLibraryAssetToProject(projectPath, assetId);
     });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::jobsRefreshRequested,
+                     m_runtimeHost.get(), [this] { refreshJobs(); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::jobCancelRequested,
+                     m_runtimeHost.get(), [this](const QString& jobId) { cancelJob(jobId); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::jobRetryRequested,
+                     m_runtimeHost.get(), [this](const QString& jobId) { retryJob(jobId); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::jobInsertRequested,
+                     m_runtimeHost.get(), [this](const QString& jobId) { insertJobOutput(jobId); });
     dispatcher()->reg(this, OPEN_JOBS_CODE, this, &AIStudioController::openJobs);
 }
 
@@ -196,6 +204,7 @@ void AIStudioController::enableProjectWorkspace()
     AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("AI workspace enabled: %1").arg(workspace));
     AIStudioStatusModel::instance()->setLibraryStatus(QObject::tr("Library ready for project imports"));
     refreshLibraryAssets();
+    refreshJobs();
     m_runtimeHost->restartInWorkspace(workspace);
 }
 
@@ -207,6 +216,7 @@ void AIStudioController::refreshWorkspaceStatus()
         m_activeWorkspace.clear();
         AIStudioStatusModel::instance()->setLibraryAssets({});
         AIStudioStatusModel::instance()->setLibraryFolders({});
+        AIStudioStatusModel::instance()->setJobs({});
         AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Save the project before enabling its AI workspace"));
         AIStudioStatusModel::instance()->setLibraryStatus(QObject::tr("No project Library is available"));
     } else if (au::aiproject::WorkspaceStore::isEnabled(projectPath)) {
@@ -222,10 +232,12 @@ void AIStudioController::refreshWorkspaceStatus()
                                                                  .arg(m_activeWorkspace));
         }
         refreshLibraryAssets();
+        refreshJobs();
     } else {
         m_activeWorkspace.clear();
         AIStudioStatusModel::instance()->setLibraryAssets({});
         AIStudioStatusModel::instance()->setLibraryFolders({});
+        AIStudioStatusModel::instance()->setJobs({});
         AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("AI workspace not enabled for this project"));
         AIStudioStatusModel::instance()->setLibraryStatus(QObject::tr("Enable the project AI workspace to use its Library"));
     }
@@ -785,6 +797,103 @@ void AIStudioController::recordJobStatus(const au::aicore::JobStatus& status)
         AIStudioStatusModel::instance()->setWorkspaceStatus(
             QObject::tr("Provider job %1 in the AI workspace")
                 .arg(QString::fromStdString(au::aicore::toString(status.state))));
+        refreshJobs();
+    } else {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
+    }
+}
+
+void AIStudioController::refreshJobs()
+{
+    if (m_activeWorkspace.isEmpty()) {
+        AIStudioStatusModel::instance()->setJobs({});
+        return;
+    }
+    QString error;
+    const QList<au::aicore::JobStatus> jobs = au::aijobs::JobStore::jobs(m_activeWorkspace, &error);
+    if (!error.isEmpty()) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
+        return;
+    }
+    QVariantList rows;
+    for (const au::aicore::JobStatus& job : jobs) {
+        bool inserted = false;
+        QString insertedError;
+        au::aijobs::JobStore::isInserted(m_activeWorkspace, QString::fromStdString(job.id.value), &inserted, &insertedError);
+        rows.append(QVariantMap {
+            { "id", QString::fromStdString(job.id.value) },
+            { "providerId", QString::fromStdString(job.providerId) },
+            { "state", QString::fromStdString(au::aicore::toString(job.state)) },
+            { "progress", job.progress },
+            { "message", QString::fromStdString(job.message) },
+            { "resultManifest", QString::fromStdString(job.resultManifest) },
+            { "errorMessage", QString::fromStdString(job.errorMessage) },
+            { "inserted", inserted }
+        });
+    }
+    AIStudioStatusModel::instance()->setJobs(rows);
+}
+
+void AIStudioController::cancelJob(const QString& jobId)
+{
+    if (m_activeWorkspace.isEmpty()) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Enable the project AI workspace before cancelling a job"));
+        return;
+    }
+    QString error;
+    if (!m_runtimeHost->cancel(jobId, &error)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
+    }
+}
+
+void AIStudioController::retryJob(const QString& jobId)
+{
+    if (m_activeWorkspace.isEmpty()) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Enable the project AI workspace before retrying a job"));
+        return;
+    }
+    au::aicore::JobStatus job;
+    QString error;
+    if (!au::aijobs::JobStore::find(m_activeWorkspace, jobId, &job, &error)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
+        return;
+    }
+    if (!au::aicore::isTerminal(job.state)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("The selected job is still running"));
+        return;
+    }
+    const au::aicore::JobRequest request { job.providerId, "{}" };
+    if (!m_runtimeHost->submit(request, &error)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
+        return;
+    }
+    AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Retrying provider job"));
+}
+
+void AIStudioController::insertJobOutput(const QString& jobId)
+{
+    if (m_activeWorkspace.isEmpty()) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Enable the project AI workspace before inserting provider output"));
+        return;
+    }
+    const auto project = globalContext()->currentProject();
+    if (!project) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Open a project before inserting provider output"));
+        return;
+    }
+    QString error;
+    const QString assetPath = au::aijobs::JobStore::resultAssetPath(m_activeWorkspace, jobId, &error);
+    if (assetPath.isEmpty()) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
+        return;
+    }
+    if (!project->import(muse::io::path_t(assetPath), false)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Could not insert the provider output"));
+        return;
+    }
+    if (au::aijobs::JobStore::markInserted(m_activeWorkspace, jobId, &error)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Provider output inserted as a new track"));
+        refreshJobs();
     } else {
         AIStudioStatusModel::instance()->setWorkspaceStatus(error);
     }

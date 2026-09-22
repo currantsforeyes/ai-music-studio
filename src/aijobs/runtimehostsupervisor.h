@@ -52,6 +52,7 @@ private:
     void connectHealthCheck(quint16 port);
     bool writeRequest(const QJsonObject& request, QString* errorMessage);
     void notifyJobStatus(aicore::JobState state, const QString& jobId, const QString& resultManifest = QString());
+    void emitJobStatus(const aicore::JobStatus& status);
 
     QProcess* m_process = nullptr;
     QTcpSocket* m_socket = nullptr;

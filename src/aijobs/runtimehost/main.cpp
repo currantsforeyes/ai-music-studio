@@ -18,6 +18,8 @@
 #include <cmath>
 #include <cstring>
 
+#include <algorithm>
+
 namespace {
 constexpr int ProtocolVersion = 1;
 
@@ -72,6 +74,8 @@ public:
     {
         m_jobTimer.setSingleShot(true);
         connect(&m_jobTimer, &QTimer::timeout, this, [this] { finishTestJob(); });
+        m_progressTimer.setInterval(250);
+        connect(&m_progressTimer, &QTimer::timeout, this, [this] { sendProgress(); });
         connect(&m_server, &QTcpServer::newConnection, this, [this] {
             while (auto* socket = m_server.nextPendingConnection()) {
                 connect(socket, &QTcpSocket::readyRead, socket, [this, socket] {
@@ -128,7 +132,9 @@ private:
         m_activeJobId = "test-provider-job";
         m_activeJobSocket = socket;
         socket->write(response(true, "accepted", { { "jobId", m_activeJobId }, { "state", "running" } }));
+        m_progressStep = 0;
         m_jobTimer.start(1500);
+        m_progressTimer.start();
     }
 
     void cancelTestJob(QTcpSocket* socket, const QString& jobId)
@@ -138,6 +144,7 @@ private:
             return;
         }
         m_jobTimer.stop();
+        m_progressTimer.stop();
         m_activeJobId.clear();
         m_activeJobSocket = nullptr;
         socket->write(response(true, "cancelled", { { "jobId", jobId }, { "state", "cancelled" } }));
@@ -155,11 +162,27 @@ private:
         QTimer::singleShot(500, this, [] { QCoreApplication::exit(70); });
     }
 
+    void sendProgress()
+    {
+        if (m_activeJobId.isEmpty() || !m_activeJobSocket) {
+            return;
+        }
+        m_progressStep = std::min(m_progressStep + 1, 6);
+        const double progress = std::min(0.9, m_progressStep * 0.15);
+        m_activeJobSocket->write(response(true, "progress", {
+            { "jobId", m_activeJobId },
+            { "state", "running" },
+            { "progress", progress },
+            { "message", QString("Rendering %1%").arg(int(progress * 100.0)) }
+        }));
+    }
+
     void finishTestJob()
     {
         if (m_activeJobId.isEmpty()) {
             return;
         }
+        m_progressTimer.stop();
         const QString jobId = m_activeJobId;
         QTcpSocket* socket = m_activeJobSocket;
         m_activeJobId.clear();
@@ -202,6 +225,8 @@ private:
     QString m_workspace;
     QTcpServer m_server;
     QTimer m_jobTimer;
+    QTimer m_progressTimer;
+    int m_progressStep = 0;
     QString m_activeJobId;
     QPointer<QTcpSocket> m_activeJobSocket;
 };

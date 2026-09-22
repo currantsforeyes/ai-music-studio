@@ -164,6 +164,77 @@ Item {
 
         StyledTextLabel {
             Layout.fillWidth: true
+            text: qsTrc("aistudio", "Jobs")
+            font: ui.theme.bodyBoldFont
+        }
+
+        FlatButton {
+            text: qsTrc("aistudio", "Refresh jobs")
+            onClicked: AIStudioStatus.refreshJobs()
+        }
+
+        ListView {
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.min(contentHeight, 180)
+            clip: true
+            spacing: 6
+            model: AIStudioStatus.jobs
+
+            delegate: Column {
+                width: ListView.view.width
+                spacing: 2
+
+                StyledTextLabel {
+                    width: parent.width
+                    elide: Text.ElideRight
+                    text: modelData.providerId + " · " + modelData.state
+                    font: ui.theme.bodyBoldFont
+                }
+                StyledTextLabel {
+                    width: parent.width
+                    elide: Text.ElideRight
+                    text: modelData.message.length > 0 ? modelData.message : modelData.id
+                    font: ui.theme.bodyFont
+                }
+                ProgressBar {
+                    width: parent.width
+                    from: 0
+                    to: 1
+                    value: modelData.progress
+                }
+                RowLayout {
+                    spacing: 6
+
+                    FlatButton {
+                        text: qsTrc("aistudio", "Cancel")
+                        enabled: modelData.state === "running" || modelData.state === "preparing"
+                                 || modelData.state === "loading" || modelData.state === "queued"
+                        onClicked: AIStudioStatus.cancelJob(modelData.id)
+                    }
+                    FlatButton {
+                        text: qsTrc("aistudio", "Retry")
+                        enabled: modelData.state === "failed" || modelData.state === "cancelled"
+                                 || modelData.state === "interrupted"
+                        onClicked: AIStudioStatus.retryJob(modelData.id)
+                    }
+                    FlatButton {
+                        text: qsTrc("aistudio", "Insert")
+                        enabled: modelData.state === "complete" && !modelData.inserted
+                        onClicked: AIStudioStatus.insertJobOutput(modelData.id)
+                    }
+                }
+            }
+        }
+
+        StyledTextLabel {
+            Layout.fillWidth: true
+            visible: AIStudioStatus.jobs.length === 0
+            wrapMode: Text.Wrap
+            text: qsTrc("aistudio", "AI jobs appear here with live progress.")
+        }
+
+        StyledTextLabel {
+            Layout.fillWidth: true
             wrapMode: Text.Wrap
             text: qsTrc("aistudio", "Planned: Create, Plan, Separate, Vocals, Instruments, and Jobs.")
         }

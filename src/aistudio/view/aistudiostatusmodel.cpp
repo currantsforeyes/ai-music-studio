@@ -51,6 +51,11 @@ QString AIStudioStatusModel::libraryStatus() const
     return m_libraryStatus;
 }
 
+QVariantList AIStudioStatusModel::jobs() const
+{
+    return m_jobs;
+}
+
 void AIStudioStatusModel::setRuntimeStatus(const QString& status)
 {
     if (m_runtimeStatus == status) {
@@ -103,6 +108,15 @@ void AIStudioStatusModel::setLibraryStatus(const QString& status)
     }
     m_libraryStatus = status;
     emit libraryStatusChanged();
+}
+
+void AIStudioStatusModel::setJobs(const QVariantList& jobs)
+{
+    if (m_jobs == jobs) {
+        return;
+    }
+    m_jobs = jobs;
+    emit jobsChanged();
 }
 
 void AIStudioStatusModel::runTestJob()
@@ -251,5 +265,31 @@ void AIStudioStatusModel::copyGlobalLibraryAssetToProject(const QString& project
 {
     if (!projectPath.isEmpty() && !assetId.isEmpty()) {
         emit globalLibraryAssetCopyRequested(projectPath, assetId);
+    }
+}
+
+void AIStudioStatusModel::refreshJobs()
+{
+    emit jobsRefreshRequested();
+}
+
+void AIStudioStatusModel::cancelJob(const QString& jobId)
+{
+    if (!jobId.isEmpty()) {
+        emit jobCancelRequested(jobId);
+    }
+}
+
+void AIStudioStatusModel::retryJob(const QString& jobId)
+{
+    if (!jobId.isEmpty()) {
+        emit jobRetryRequested(jobId);
+    }
+}
+
+void AIStudioStatusModel::insertJobOutput(const QString& jobId)
+{
+    if (!jobId.isEmpty()) {
+        emit jobInsertRequested(jobId);
     }
 }

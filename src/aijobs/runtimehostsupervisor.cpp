@@ -86,6 +86,13 @@ RuntimeHostSupervisor::RuntimeHostSupervisor(QObject* parent)
                 emit testJobCancelled(jobId);
                 notifyJobStatus(au::aicore::JobState::Cancelled, jobId);
                 setStatus(tr("Test provider job cancelled"));
+            } else if (response.value("ok").toBool() && code == "progress") {
+                aicore::JobStatus status;
+                status.id.value = response.value("jobId").toString().toStdString();
+                status.state = au::aicore::JobState::Running;
+                status.progress = response.value("progress").toDouble();
+                status.message = response.value("message").toString().toStdString();
+                emitJobStatus(status);
             } else {
                 setStatus(tr("Runtime host request failed"));
             }
@@ -262,15 +269,26 @@ bool RuntimeHostSupervisor::writeRequest(const QJsonObject& request, QString* er
 void RuntimeHostSupervisor::notifyJobStatus(aicore::JobState state, const QString& jobId,
                                             const QString& resultManifest)
 {
+    aicore::JobStatus status;
+    status.id.value = jobId.toStdString();
+    status.state = state;
+    status.resultManifest = resultManifest.toStdString();
+    if (state == aicore::JobState::Complete) {
+        status.progress = 1.0;
+    }
+    emitJobStatus(status);
+}
+
+void RuntimeHostSupervisor::emitJobStatus(const aicore::JobStatus& status)
+{
     if (!m_jobStatusHandler) {
         return;
     }
-    aicore::JobStatus status;
-    status.id.value = jobId.toStdString();
-    status.providerId = (m_activeProviderId.isEmpty() ? QStringLiteral("test-provider") : m_activeProviderId).toStdString();
-    status.state = state;
-    status.resultManifest = resultManifest.toStdString();
-    m_jobStatusHandler(status);
+    aicore::JobStatus value = status;
+    if (value.providerId.empty()) {
+        value.providerId = (m_activeProviderId.isEmpty() ? QStringLiteral("test-provider") : m_activeProviderId).toStdString();
+    }
+    m_jobStatusHandler(value);
 }
 
 void RuntimeHostSupervisor::connectHealthCheck(quint16 port)
