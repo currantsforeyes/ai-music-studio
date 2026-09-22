@@ -1,0 +1,19 @@
+name: 'AI Music Studio'
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ai-music-studio
+jobs:
+  modules:
+    name: Verify AI modules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the AI Music Studio modules are present
+        run: |
+          set -e
+          for module in aicore aiproject aijobs ailibrary aistudio aimusic; do
+            test -d "src/$module"
+            echo "found src/$module"
+          done
