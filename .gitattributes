@@ -8,6 +8,13 @@
 *.wav -text
 *.au -text
 *.ico -text
+# binary build/runtime artifacts must never be line-end normalized
+*.dll -text
+*.lib -text
+*.exe -text
+*.bmp -text
+*.pdb -text
+*.obj -text
 # and weird stuff in lib-src
 *.ttl text=auto
 *.aps text=auto
