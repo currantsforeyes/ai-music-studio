@@ -100,6 +100,26 @@ The next decision required from the project owner is one of:
 2. Keep the current workstation as the Audacity client and use a separately managed local/remote provider host on qualifying hardware.
 3. Approve the `Comfy-Org/YuE2` int8 package as a separate research-only Windows provider and validate it on this workstation; it must not replace the official provider by default.
 
+## Native Q4 acceptance result
+
+On 2026-09-23 the native `audio.cpp` Q4 path was built and run on the observed workstation (Windows 11, RTX 4060 Ti 16 GB, driver 616.92, CUDA Toolkit 13.4). The acceptance harness `tools/native-yue2-benchmark.ps1` recorded:
+
+| Measure | Result |
+| --- | ---: |
+| Runtime | `0xShug0/audio.cpp` `dev`, CUDA 13.4 |
+| Model package | `audio-cpp/Yue2-3B-GGUF` @ `eb116220931de5f373d024d48800338178c7de51` (Q4_0 + F16 VAE) |
+| Terminal status | success |
+| Wall time | 63.4 s |
+| Peak VRAM | 14 187 MiB of 16 380 MiB |
+| Peak temperature | 60 C |
+| Peak utilisation | 100% |
+| Output | 32.6 s, 48 kHz, stereo, 6.26 MB |
+| Artifact | score (ABC), 603 bytes |
+
+Report: `benchmarks/yue2/reports/native-yue2-20260923-094147.json`.
+
+This supersedes option 3 as the more attractive path: Q4 YuE2 runs **natively** on a 16 GB consumer card without ComfyUI. Headroom is limited (~2.2 GB), so longer generations and safe concurrency remain unproven, and listening quality plus the disposable-project import were not evaluated by the harness.
+
 ## Sources
 
 - https://github.com/multimodal-art-projection/YuE

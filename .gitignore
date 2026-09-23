@@ -277,3 +277,6 @@ CMakeUserPresets.json
 
 .claude/settings.local.json
 _deps/
+
+# Native YuE2 acceptance harness logs (machine-specific; the JSON reports are committed)
+benchmarks/yue2/reports/logs/

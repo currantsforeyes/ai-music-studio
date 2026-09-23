@@ -1,0 +1,348 @@
+﻿{
+    "profileId":  "native-yue2-q4-nvidia-v1",
+    "runMode":  "submitted",
+    "startedAtUtc":  "2026-09-23T08:40:40.5497257Z",
+    "runtime":  {
+                    "repo":  "https://github.com/0xShug0/audio.cpp",
+                    "branch":  "dev",
+                    "cliPath":  "D:\\native-yue2-test\\audio.cpp\\build\\windows-cuda-release\\bin\\audiocpp_cli.exe",
+                    "backend":  "cuda"
+                },
+    "model":  {
+                  "repo":  "audio-cpp/Yue2-3B-GGUF",
+                  "revision":  "eb116220931de5f373d024d48800338178c7de51",
+                  "directory":  "D:\\native-yue2-test\\models\\yue2-q4",
+                  "mainModel":  "yue2-3b-q4_0.gguf",
+                  "decoder":  "yue2-vae-f16.gguf",
+                  "files":  [
+                                {
+                                    "name":  "yue2-3b-q4_0.gguf",
+                                    "path":  "D:\\native-yue2-test\\models\\yue2-q4\\yue2-3b-q4_0.gguf",
+                                    "exists":  true,
+                                    "bytes":  2665632320,
+                                    "sha256":  "97af67d7f800b362faee6e6bec806bddfcccb93f25fd3f9a1012724d95af6f4a"
+                                },
+                                {
+                                    "name":  "yue2-vae-f16.gguf",
+                                    "path":  "D:\\native-yue2-test\\models\\yue2-q4\\yue2-vae-f16.gguf",
+                                    "exists":  true,
+                                    "bytes":  265218656,
+                                    "sha256":  "d4f4a05d8f291ae820cd1e43609da3fa91b56465810091a2b08c3350b751719d"
+                                },
+                                {
+                                    "name":  "yue2-model-config.json",
+                                    "path":  "D:\\native-yue2-test\\models\\yue2-q4\\sidecars\\yue2-model-config.json",
+                                    "exists":  true,
+                                    "bytes":  959,
+                                    "sha256":  "ad3477bbef890bf98ae196c1e4b44779494a6231c4ab66f32708eabadf265329"
+                                },
+                                {
+                                    "name":  "yue2-generation-config.json",
+                                    "path":  "D:\\native-yue2-test\\models\\yue2-q4\\sidecars\\yue2-generation-config.json",
+                                    "exists":  true,
+                                    "bytes":  466,
+                                    "sha256":  "203830cebde6e3644eb291925362990d198e66c3b6006cd11f1aaa21904bcc61"
+                                },
+                                {
+                                    "name":  "yue2-qwen.tiktoken",
+                                    "path":  "D:\\native-yue2-test\\models\\yue2-q4\\sidecars\\yue2-qwen.tiktoken",
+                                    "exists":  true,
+                                    "bytes":  2561218,
+                                    "sha256":  "b2b1b8dfb5cc5f024bafc373121c6aba3f66f9a5a0269e243470a1de16a33186"
+                                },
+                                {
+                                    "name":  "yue2-vae-config.json",
+                                    "path":  "D:\\native-yue2-test\\models\\yue2-q4\\sidecars\\yue2-vae-config.json",
+                                    "exists":  true,
+                                    "bytes":  1378,
+                                    "sha256":  "f0191bb9694009956de44e0c361a6f1334760be4c8f848e599bde242a54a0970"
+                                }
+                            ]
+              },
+    "request":  {
+                    "threads":  8,
+                    "steps":  8,
+                    "seed":  20260917,
+                    "backend":  "cuda",
+                    "style":  "English indie pop, warm lead vocal, acoustic guitar, bass, light drums",
+                    "text":  "[Verse]\nMorning light arrives, a new melody begins.\n[Chorus]\nCarry the rhythm home, bright and clear."
+                },
+    "gpuSamples":  [
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  58,
+                           "memoryUsedMiB":  10780,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  58,
+                           "memoryUsedMiB":  13207,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  59,
+                           "memoryUsedMiB":  12914,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  55,
+                           "memoryUsedMiB":  13207,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  58,
+                           "memoryUsedMiB":  13207,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  58,
+                           "memoryUsedMiB":  13068,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  55,
+                           "memoryUsedMiB":  13212,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  56,
+                           "memoryUsedMiB":  13065,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  59,
+                           "memoryUsedMiB":  12914,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  55,
+                           "memoryUsedMiB":  12591,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  55,
+                           "memoryUsedMiB":  13399,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  56,
+                           "memoryUsedMiB":  13399,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  58,
+                           "memoryUsedMiB":  13399,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  54,
+                           "memoryUsedMiB":  13399,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  55,
+                           "memoryUsedMiB":  13399,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  57,
+                           "memoryUsedMiB":  13399,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  56,
+                           "memoryUsedMiB":  13253,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  55,
+                           "memoryUsedMiB":  13106,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  57,
+                           "memoryUsedMiB":  13399,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  56,
+                           "memoryUsedMiB":  13106,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  56,
+                           "memoryUsedMiB":  13399,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  55,
+                           "memoryUsedMiB":  13399,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  58,
+                           "memoryUsedMiB":  13399,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  55,
+                           "memoryUsedMiB":  13406,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  54,
+                           "memoryUsedMiB":  13257,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  57,
+                           "memoryUsedMiB":  13404,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  57,
+                           "memoryUsedMiB":  14187,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  57,
+                           "memoryUsedMiB":  14041,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  60,
+                           "memoryUsedMiB":  14187,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  58,
+                           "memoryUsedMiB":  13621,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  55,
+                           "memoryUsedMiB":  13621,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       },
+                       {
+                           "name":  "NVIDIA GeForce RTX 4060 Ti",
+                           "driverVersion":  "616.92",
+                           "temperatureC":  60,
+                           "memoryUsedMiB":  10926,
+                           "memoryTotalMiB":  16380,
+                           "utilizationPercent":  100
+                       }
+                   ],
+    "command":  "D:\\native-yue2-test\\audio.cpp\\build\\windows-cuda-release\\bin\\audiocpp_cli.exe --task gen --family yue2 --model D:\\native-yue2-test\\models\\yue2-q4 --backend cuda --threads 8 --text \"[Verse]\nMorning light arrives, a new melody begins.\n[Chorus]\nCarry the rhythm home, bright and clear.\" --request-option \"style=English indie pop, warm lead vocal, acoustic guitar, bass, light drums\" --request-option cot=full --request-option seed=20260917 --request-option num_inference_steps=8 --session-option yue2.model_gguf=yue2-3b-q4_0.gguf --session-option yue2.vae_gguf=yue2-vae-f16.gguf --out \"D:\\AI Music Studio v2\\yue2-q4-12gb-test-20260923-094040.wav\" --log",
+    "logPath":  "D:\\AI Music Studio v2\\tools\\..\\benchmarks\\yue2\\reports\\logs\\native-yue2-20260923-094043.out.log",
+    "errorLogPath":  "D:\\AI Music Studio v2\\tools\\..\\benchmarks\\yue2\\reports\\logs\\native-yue2-20260923-094043.err.log",
+    "exitCode":  "unknown",
+    "elapsedSeconds":  63.423,
+    "output":  {
+                   "bytes":  6258988,
+                   "sampleRate":  48000,
+                   "channels":  2,
+                   "bitsPerSample":  16,
+                   "durationSeconds":  32.599
+               },
+    "terminalStatus":  "success",
+    "notes":  [
+
+              ],
+    "cudaRuntimeDirs":  [
+                            "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.4\\bin\\x64",
+                            "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v13.4\\bin"
+                        ]
+}

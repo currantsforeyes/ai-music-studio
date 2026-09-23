@@ -70,6 +70,32 @@ function Get-GpuSample {
     })
 }
 
+function Add-CudaRuntimeToPath {
+    # The audio.cpp CUDA build links cudart/cublas/cufft dynamically; those DLLs
+    # live under the CUDA Toolkit (in bin\x64), not next to the CLI. Prepend the
+    # detected CUDA runtime directories so the child process can load them.
+    $candidates = @()
+    if ($env:CUDA_PATH) {
+        $candidates += (Join-Path $env:CUDA_PATH 'bin\x64')
+        $candidates += (Join-Path $env:CUDA_PATH 'bin')
+    }
+    $roots = Get-ChildItem 'C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v*' -Directory -ErrorAction SilentlyContinue |
+        Sort-Object Name -Descending
+    foreach ($root in $roots) {
+        $candidates += (Join-Path $root.FullName 'bin\x64')
+        $candidates += (Join-Path $root.FullName 'bin')
+    }
+
+    $added = @()
+    foreach ($path in $candidates) {
+        if ((Test-Path $path) -and (($env:PATH -split [IO.Path]::PathSeparator) -notcontains $path)) {
+            $env:PATH = $path + [IO.Path]::PathSeparator + $env:PATH
+            $added += $path
+        }
+    }
+    return $added
+}
+
 function Get-WavInfo {
     param([Parameter(Mandatory = $true)][string]$Path)
 
@@ -278,6 +304,8 @@ $report.command = "$CliPath $commandLine"
 $report.logPath = $logPath
 $report.errorLogPath = $errorLogPath
 
+$cudaRuntimeDirs = @(Add-CudaRuntimeToPath)
+$report.cudaRuntimeDirs = $cudaRuntimeDirs
 Write-Output "Running native YuE2 acceptance generation..."
 $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 $process = Start-Process -FilePath $cliFullPath -ArgumentList $commandLine -PassThru -NoNewWindow `
@@ -288,19 +316,30 @@ while (-not $process.HasExited) {
     $report.gpuSamples += @(Get-GpuSample)
 }
 $process.WaitForExit()
+$process.Refresh()
 $stopwatch.Stop()
 
-$report.exitCode = $process.ExitCode
+# Start-Process -PassThru can leave ExitCode null until the process object is
+# refreshed; fall back to the output WAV when Windows still reports nothing.
+$exitCode = $process.ExitCode
+$report.exitCode = if ($null -ne $exitCode) { $exitCode } else { 'unknown' }
 $report.elapsedSeconds = [math]::Round($stopwatch.Elapsed.TotalSeconds, 3)
 
 if (Test-Path -LiteralPath $OutputPath) {
     $report.output = Get-WavInfo -Path $OutputPath
 }
 
-if ($process.ExitCode -ne 0) {
+if ($null -eq $exitCode) {
+    if ($null -eq $report.output) {
+        $report.terminalStatus = 'process-failed'
+        Write-NativeReport -Report $report
+        throw "audiocpp_cli ended without an exit code and produced no valid WAV. See $errorLogPath."
+    }
+} elseif ($exitCode -ne 0) {
     $report.terminalStatus = 'process-failed'
     Write-NativeReport -Report $report
-    throw "audiocpp_cli exited with code $($process.ExitCode). See $errorLogPath."
+    $hint = if ($exitCode -eq -1073741515) { ' (STATUS_DLL_NOT_FOUND: a required runtime DLL is missing from PATH)' } else { '' }
+    throw "audiocpp_cli exited with code $exitCode$hint. See $errorLogPath."
 }
 if (-not $report.output) {
     $report.terminalStatus = 'output-invalid'
