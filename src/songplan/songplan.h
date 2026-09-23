@@ -52,4 +52,10 @@ bool validate(const SongPlan& plan, QStringList* errors = nullptr);
 // Best-effort extraction of tempo/key/time signature from an ABC header into
 // the plan. Returns the number of recognized fields (zero is not an error).
 int applyAbcHeader(const QByteArray& abc, SongPlan* plan);
+
+// Parses an ABC score into a plan: header fields plus sections (from "%"
+// comment markers), chords (quoted symbols) and melody notes (from the voice
+// whose name contains "vocal", falling back to the first voice). Returns true
+// unless plan is null. Malformed tokens are skipped rather than fatal.
+bool parseAbcPlan(const QByteArray& abc, SongPlan* plan, QString* errorMessage = nullptr);
 }

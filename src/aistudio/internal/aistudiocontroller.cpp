@@ -1301,7 +1301,7 @@ void AIStudioController::registerJobArtifacts(const QString& jobId, const QStrin
         plan.sourceScoreAssetId = asset.id;
         QFile scoreFile(artifact.path);
         if (scoreFile.open(QIODevice::ReadOnly)) {
-            au::songplan::applyAbcHeader(scoreFile.readAll(), &plan);
+            au::songplan::parseAbcPlan(scoreFile.readAll(), &plan);
         }
         if (!au::songplan::SongPlanStore::saveRevision(m_activeWorkspace, plan, &error)) {
             AIStudioStatusModel::instance()->setLibraryStatus(error);

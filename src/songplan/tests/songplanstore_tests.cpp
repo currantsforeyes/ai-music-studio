@@ -205,4 +205,68 @@ TEST(SongPlanTests, AppliesAbcHeaderFields)
     EXPECT_EQ(plan.key, QStringLiteral("Am"));
 }
 
+TEST(SongPlanTests, ParsesAbcBodyIntoSectionsChordsAndMelody)
+{
+    const QByteArray abc(
+        "X:1\n"
+        "T:\n"
+        "M:4/4\n"
+        "L:1/32\n"
+        "Q:1/4=100\n"
+        "V: Vocal clef=treble name=\"Vocal Melody\"\n"
+        "V: Ins clef=treble name=\"Ins Melody\"\n"
+        "K:D\n"
+        "% intro\n"
+        "V: Vocal\n"
+        "\"D\"z32|\"Gmaj7\"z32|\n"
+        "V: Ins\n"
+        "D4D4F4D2F4F2D4F4D2F2|\n"
+        "% chorus\n"
+        "V: Vocal\n"
+        "\"D\"a16-a4b8f4-|\"Gmaj7\"f8z24|\n"
+        "V: Ins\n"
+        "Z4|\n"
+        "% outro\n"
+        "V: Vocal\n"
+        "\"D\"z32|\n"
+        "V: Ins\n"
+        "f12e16z4|\n");
+
+    SongPlan plan;
+    plan.id = "abc-body";
+    QString error;
+    ASSERT_TRUE(parseAbcPlan(abc, &plan, &error)) << error.toStdString();
+
+    EXPECT_DOUBLE_EQ(plan.tempo, 100.0);
+    EXPECT_EQ(plan.timeSignature, QStringLiteral("4/4"));
+    EXPECT_EQ(plan.key, QStringLiteral("D"));
+
+    ASSERT_EQ(plan.sections.size(), 3);
+    EXPECT_EQ(plan.sections[0].name, QStringLiteral("intro"));
+    EXPECT_EQ(plan.sections[1].name, QStringLiteral("chorus"));
+    EXPECT_EQ(plan.sections[2].name, QStringLiteral("outro"));
+    for (const SongSection& section : plan.sections) {
+        EXPECT_GT(section.endSeconds, section.startSeconds) << section.name.toStdString();
+    }
+    EXPECT_LE(plan.sections[0].endSeconds, plan.sections[1].startSeconds);
+
+    // Chords are taken from the quoted symbols in document order.
+    ASSERT_EQ(plan.chords.size(), 5);
+    EXPECT_EQ(plan.chords.front().symbol, QStringLiteral("D"));
+    EXPECT_EQ(plan.chords.at(3).symbol, QStringLiteral("Gmaj7"));
+    EXPECT_GT(plan.chords.front().durationSeconds, 0.0);
+
+    // Only the "Vocal" voice becomes melody; the instrumental voice must not leak.
+    // a16 - a4 b8 f4 - f8 => five notes, all in the vocal register.
+    ASSERT_EQ(plan.melody.size(), 5);
+    EXPECT_EQ(plan.melody.front().midiPitch, 81); // lowercase 'a' is one octave up
+    for (int index = 1; index < plan.melody.size(); ++index) {
+        EXPECT_GE(plan.melody.at(index).startSeconds, plan.melody.at(index - 1).startSeconds);
+    }
+    EXPECT_GT(plan.melody.back().startSeconds, plan.melody.front().startSeconds);
+
+    // Sections and melody share the same converted timeline (intro is 2 whole notes).
+    EXPECT_DOUBLE_EQ(plan.sections[1].startSeconds, 2.0 * 4.0 * 60.0 / 100.0);
+}
+
 }
