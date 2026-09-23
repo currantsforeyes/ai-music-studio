@@ -44,8 +44,6 @@ public:
     void setPlans(const QVariantList& plans);
     void setPlanDetail(const QVariantMap& planDetail);
 
-    Q_INVOKABLE void runTestJob();
-    Q_INVOKABLE void runWorkerFailureTest();
     Q_INVOKABLE void enableProjectWorkspace();
     Q_INVOKABLE void refreshLibrary();
     Q_INVOKABLE void importLocalWav(const QString& sourcePath);
@@ -89,8 +87,6 @@ signals:
     void globalLibraryAssetsChanged();
     void libraryFoldersChanged();
     void libraryStatusChanged();
-    void testJobRequested();
-    void workerFailureTestRequested();
     void workspaceEnableRequested();
     void libraryRefreshRequested();
     void libraryImportRequested(const QString& sourcePath);

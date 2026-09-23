@@ -147,16 +147,6 @@ void AIStudioStatusModel::setPlanDetail(const QVariantMap& planDetail)
     emit planDetailChanged();
 }
 
-void AIStudioStatusModel::runTestJob()
-{
-    emit testJobRequested();
-}
-
-void AIStudioStatusModel::runWorkerFailureTest()
-{
-    emit workerFailureTestRequested();
-}
-
 void AIStudioStatusModel::enableProjectWorkspace()
 {
     emit workspaceEnableRequested();

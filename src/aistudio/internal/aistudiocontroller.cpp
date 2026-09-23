@@ -104,10 +104,6 @@ void AIStudioController::init()
     QObject::connect(m_runtimeHost.get(), &au::aijobs::RuntimeHostSupervisor::statusChanged,
                      AIStudioStatusModel::instance(), &AIStudioStatusModel::setRuntimeStatus);
     m_runtimeHost->setJobStatusHandler([this](const au::aicore::JobStatus& status) { recordJobStatus(status); });
-    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::testJobRequested,
-                     m_runtimeHost.get(), &au::aijobs::RuntimeHostSupervisor::submitTestJob);
-    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::workerFailureTestRequested,
-                     m_runtimeHost.get(), &au::aijobs::RuntimeHostSupervisor::submitFailureTest);
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::workspaceEnableRequested,
                      m_runtimeHost.get(), [this] { enableProjectWorkspace(); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::libraryRefreshRequested,
@@ -227,6 +223,16 @@ void AIStudioController::enableProjectWorkspace()
 {
     const auto project = globalContext()->currentProject();
     const QString projectPath = project ? project->path().toQString() : QString();
+    if (projectPath.isEmpty()) {
+        // Nothing to attach to yet; surface the "save the project" guidance.
+        refreshWorkspaceStatus();
+        return;
+    }
+    if (au::aiproject::WorkspaceStore::isEnabled(projectPath) && !m_activeWorkspace.isEmpty()) {
+        // Already attached to this project; just refresh instead of restarting.
+        refreshWorkspaceStatus();
+        return;
+    }
     QString error;
     if (!au::aiproject::WorkspaceStore::create(projectPath, &error)) {
         AIStudioStatusModel::instance()->setWorkspaceStatus(error);
@@ -258,7 +264,7 @@ void AIStudioController::refreshWorkspaceStatus()
         AIStudioStatusModel::instance()->setPlans({});
         m_planDraftLoaded = false;
         AIStudioStatusModel::instance()->setPlanDetail({});
-        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Save the project before enabling its AI workspace"));
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Save the project to enable its AI workspace"));
         AIStudioStatusModel::instance()->setLibraryStatus(QObject::tr("No project Library is available"));
     } else if (au::aiproject::WorkspaceStore::isEnabled(projectPath)) {
         const QString workspacePath = au::aiproject::WorkspaceStore::workspacePathForProject(projectPath);
@@ -289,7 +295,7 @@ void AIStudioController::refreshWorkspaceStatus()
         m_planDraftLoaded = false;
         AIStudioStatusModel::instance()->setPlanDetail({});
         AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("AI workspace not enabled for this project"));
-        AIStudioStatusModel::instance()->setLibraryStatus(QObject::tr("Enable the project AI workspace to use its Library"));
+        AIStudioStatusModel::instance()->setLibraryStatus(QObject::tr("This project has no AI Library yet"));
     }
 }
 

@@ -22,10 +22,20 @@ Item {
         }
     }
 
-    ColumnLayout {
+    // Enabling the per-project AI workspace is automatic: opening the panel
+    // creates/reuses it when the project has been saved.
+    Component.onCompleted: AIStudioStatus.enableProjectWorkspace()
+
+    ScrollView {
+        id: panelScroll
         anchors.fill: parent
         anchors.margins: 16
-        spacing: 12
+        clip: true
+        contentWidth: availableWidth
+
+        ColumnLayout {
+            width: panelScroll.availableWidth
+            spacing: 12
 
         StyledTextLabel {
             Layout.fillWidth: true
@@ -43,17 +53,6 @@ Item {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             text: AIStudioStatus.workspaceStatus
-        }
-
-        StyledTextLabel {
-            Layout.fillWidth: true
-            wrapMode: Text.Wrap
-            text: qsTrc("aistudio", "Run a deterministic local provider job to verify the authenticated job boundary. It writes a disposable WAV and manifest only; it does not alter this project.")
-        }
-
-        FlatButton {
-            text: qsTrc("aistudio", "Enable project AI workspace")
-            onClicked: AIStudioStatus.enableProjectWorkspace()
         }
 
         Rectangle {
@@ -131,24 +130,6 @@ Item {
             visible: AIStudioStatus.libraryAssets.length === 0
             wrapMode: Text.Wrap
             text: qsTrc("aistudio", "Imported and generated assets stay here even when they are not on the timeline.")
-        }
-
-        StyledTextLabel {
-            Layout.fillWidth: true
-            text: qsTrc("aistudio", "Diagnostics")
-            font: ui.theme.bodyBoldFont
-        }
-
-        FlatButton {
-            text: qsTrc("aistudio", "Run test provider job")
-            enabled: AIStudioStatus.runtimeStatus === qsTrc("aistudio", "Runtime host healthy")
-            onClicked: AIStudioStatus.runTestJob()
-        }
-
-        FlatButton {
-            text: qsTrc("aistudio", "Run worker-failure test")
-            enabled: AIStudioStatus.runtimeStatus === qsTrc("aistudio", "Runtime host healthy")
-            onClicked: AIStudioStatus.runWorkerFailureTest()
         }
 
         Rectangle {
@@ -495,8 +476,7 @@ Item {
             wrapMode: Text.Wrap
             text: qsTrc("aistudio", "Planned: Create, Plan, Separate, Vocals, Instruments, and Jobs.")
         }
-
-        Item { Layout.fillHeight: true }
+        }
     }
 
     Popup {
