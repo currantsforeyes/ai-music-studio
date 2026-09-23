@@ -63,3 +63,21 @@ If the current `dev` CLI reports an option-name change, stop and retain the exac
 6. Import the WAV into a disposable Audacity project; confirm playback and undo/redo.
 
 Record the GPU model, driver, `audio.cpp` commit, model-package revision, exact command, and all measurements. A pass on one 12 GB GPU establishes only that configuration; it does not automatically promote Q4 to the general release default.
+
+## Automated harness
+
+`tools/native-yue2-benchmark.ps1` records this test as a machine-readable report. It verifies the CLI, the pinned model files, and the GPU before generating; on `-Submit` it runs the exact documented command, samples the GPU throughout, and records the exit code, wall time, log paths, and output WAV details (duration, sample rate, channels, size).
+
+```powershell
+# Preflight: verify the CLI, model files, and GPU without generating.
+.\tools\native-yue2-benchmark.ps1 `
+    -CliPath .\build\windows-cuda-release\bin\audiocpp_cli.exe `
+    -ModelDirectory .\models\yue2-q4
+
+# Acceptance run: generate one WAV and write a report under benchmarks/yue2/reports/.
+.\tools\native-yue2-benchmark.ps1 `
+    -CliPath .\build\windows-cuda-release\bin\audiocpp_cli.exe `
+    -ModelDirectory .\models\yue2-q4 -Submit -HashModels
+```
+
+The report pins the `audio.cpp` repo/branch and the `audio-cpp/Yue2-3B-GGUF` revision, so a result can always be tied back to the exact runtime and weights. Listening checks and the disposable-project import remain manual.

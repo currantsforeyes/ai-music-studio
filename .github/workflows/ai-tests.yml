@@ -16,6 +16,7 @@ on:
       - 'src/songplan/**'
       - 'src/appshell/qml/Audacity/AppShell/ProjectPage/AIStudioPanel.qml'
       - 'src/appshell/qml/Audacity/AppShell/LibraryPage/**'
+      - 'tools/native-yue2-benchmark.ps1'
       - '.github/workflows/ai-tests.yml'
 
 concurrency:
@@ -40,6 +41,14 @@ jobs:
                 -DBUILD_MODE="devel_build" \
                 -DARTIFACT_INFO="build.artifacts/" \
                 -P ${CI_DIR}/common/ci_configure.cmake
+
+      - name: Lint the native YuE2 harness
+        shell: pwsh
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile('tools/native-yue2-benchmark.ps1', [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
+          Write-Output 'PowerShell syntax OK'
 
       - name: Restore ccache
         id: restore-ccache
