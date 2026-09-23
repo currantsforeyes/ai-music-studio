@@ -3,6 +3,7 @@
  */
 #include <QCommandLineParser>
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QEventLoop>
@@ -23,9 +24,15 @@
 #include <QUuid>
 
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 
 #include <algorithm>
+#include <exception>
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 
 #include "aijobs/yue2provider.h"
 
@@ -40,6 +47,55 @@ QByteArray response(bool ok, const QString& code, const QJsonObject& values = {}
     payload.insert("protocolVersion", ProtocolVersion);
     return QJsonDocument(payload).toJson(QJsonDocument::Compact) + '\n';
 }
+
+// Persistent host diagnostics. A job that ends without writing result.json is
+// otherwise silent, so every lifecycle step and the provider's stderr are
+// appended here. The unhandled-exception filter makes a crash observable too.
+FILE* g_hostLog = nullptr;
+
+void hostLog(const QString& message)
+{
+    if (!g_hostLog) {
+        return;
+    }
+    const QString line = QStringLiteral("%1 %2\n")
+                         .arg(QDateTime::currentDateTime().toString(Qt::ISODateWithMs), message);
+    const QByteArray utf8 = line.toUtf8();
+    std::fwrite(utf8.constData(), 1, static_cast<size_t>(utf8.size()), g_hostLog);
+    std::fflush(g_hostLog);
+}
+
+bool openHostLog(const QString& path)
+{
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    g_hostLog = std::fopen(path.toUtf8().constData(), "a");
+    return g_hostLog != nullptr;
+}
+
+void hostMessageHandler(QtMsgType type, const QMessageLogContext&, const QString& message)
+{
+    hostLog(QStringLiteral("qt: %1").arg(message));
+    if (type == QtFatalMsg) {
+        if (g_hostLog) {
+            std::fflush(g_hostLog);
+        }
+        std::abort();
+    }
+}
+
+#ifdef Q_OS_WIN
+LONG WINAPI hostCrashHandler(EXCEPTION_POINTERS* info)
+{
+    if (g_hostLog) {
+        const DWORD code = (info && info->ExceptionRecord) ? info->ExceptionRecord->ExceptionCode : 0;
+        const void* address = (info && info->ExceptionRecord) ? info->ExceptionRecord->ExceptionAddress : nullptr;
+        std::fprintf(g_hostLog, "[crash] unhandled exception code=0x%08lx address=%p\n",
+                     static_cast<unsigned long>(code), address);
+        std::fflush(g_hostLog);
+    }
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+#endif
 
 // CUDA runtime DLLs (cudart/cublas/cufft) are loaded dynamically by the
 // audio.cpp CLI and live under the CUDA Toolkit, not next to the executable.
@@ -145,7 +201,9 @@ public:
 
     bool listen()
     {
-        return m_server.listen(QHostAddress::LocalHost, 0);
+        const bool ok = m_server.listen(QHostAddress::LocalHost, 0);
+        hostLog(QStringLiteral("runtime host listen ok=%1 port=%2").arg(ok).arg(m_server.serverPort()));
+        return ok;
     }
 
     quint16 port() const { return m_server.serverPort(); }
@@ -154,6 +212,7 @@ private:
     void handleSubmitJob(QTcpSocket* socket, const QJsonObject& request)
     {
         const QString providerId = request.value("providerId").toString();
+        hostLog(QStringLiteral("submit-job provider=%1").arg(providerId));
         if (providerId == "test-provider") {
             startTestJob(socket);
         } else if (providerId == "yue2-native") {
@@ -187,6 +246,7 @@ private:
         m_activeJobId = "test-provider-job";
         m_activeJobSocket = socket;
         m_cancelled = false;
+        hostLog(QStringLiteral("test-provider job accepted"));
         socket->write(response(true, "accepted", { { "jobId", m_activeJobId }, { "state", "running" } }));
         m_progressStep = 0;
         m_jobTimer.start(1500);
@@ -301,6 +361,8 @@ private:
         m_providerArtifacts.clear();
         m_cancelled = false;
         socket->write(response(true, "accepted", { { "jobId", jobId }, { "state", "running" } }));
+        hostLog(QStringLiteral("yue2 job accepted id=%1 cli=%2 model=%3")
+                .arg(jobId, parameters.cliPath, parameters.modelDirectory));
         sendProgressValue(jobId, 0.05, QStringLiteral("Starting YuE2"));
 
         m_providerProcess = new QProcess(this);
@@ -308,19 +370,40 @@ private:
         QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
         environment.insert("PATH", providerEnvironmentPath());
         m_providerProcess->setProcessEnvironment(environment);
-        connect(m_providerProcess, &QProcess::readyReadStandardOutput, this, [this] { drainYue2Stdout(); });
-        connect(m_providerProcess, &QProcess::readyReadStandardError, this, [this] { drainYue2Stderr(); });
+        connect(m_providerProcess, &QProcess::readyReadStandardOutput, this, [this] {
+            try {
+                drainYue2Stdout();
+            } catch (const std::exception& error) {
+                hostLog(QStringLiteral("exception in drainYue2Stdout: %1").arg(error.what()));
+            }
+        });
+        connect(m_providerProcess, &QProcess::readyReadStandardError, this, [this] {
+            try {
+                drainYue2Stderr();
+            } catch (const std::exception& error) {
+                hostLog(QStringLiteral("exception in drainYue2Stderr: %1").arg(error.what()));
+            }
+        });
         connect(m_providerProcess, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
-                [this](int exitCode, QProcess::ExitStatus) { finishYue2Job(exitCode); });
+                [this](int exitCode, QProcess::ExitStatus) {
+            try {
+                finishYue2Job(exitCode);
+            } catch (const std::exception& error) {
+                hostLog(QStringLiteral("exception in finishYue2Job: %1").arg(error.what()));
+            }
+        });
         m_providerProcess->start(parameters.cliPath,
                                  au::aijobs::buildYue2Arguments(parameters, outputPath, jobDirectory));
         if (!m_providerProcess->waitForStarted(5000)) {
+            hostLog(QStringLiteral("yue2 provider failed to start: %1").arg(parameters.cliPath));
             socket->write(response(false, "provider-start-failed", { { "jobId", jobId } }));
             m_providerProcess->deleteLater();
             m_providerProcess = nullptr;
             m_activeJobId.clear();
             m_activeJobSocket = nullptr;
             m_providerOutputPath.clear();
+        } else {
+            hostLog(QStringLiteral("yue2 provider started pid=%1").arg(m_providerProcess->processId()));
         }
     }
 
@@ -336,6 +419,7 @@ private:
             }
             const au::aijobs::Yue2Progress progress = au::aijobs::yue2ProgressFromLogLine(line);
             if (progress.recognized) {
+                hostLog(QStringLiteral("progress %1 %2").arg(progress.progress).arg(progress.message));
                 sendProgressValue(m_activeJobId, progress.progress, progress.message);
             }
             // The CLI prints artifact_out[<id>]=<path> for each persisted artifact.
@@ -356,7 +440,9 @@ private:
         }
         const QString text = QString::fromUtf8(m_providerProcess->readAllStandardError());
         for (const QString& line : text.split('\n', Qt::SkipEmptyParts)) {
-            m_providerLog.append(line.trimmed());
+            const QString trimmed = line.trimmed();
+            m_providerLog.append(trimmed);
+            hostLog(QStringLiteral("cli: %1").arg(trimmed));
         }
         constexpr int maximumLines = 20;
         while (m_providerLog.size() > maximumLines) {
@@ -366,6 +452,7 @@ private:
 
     void finishYue2Job(int exitCode)
     {
+        hostLog(QStringLiteral("yue2 finish exitCode=%1").arg(exitCode));
         drainYue2Stdout();
         drainYue2Stderr();
         QProcess* process = m_providerProcess;
@@ -411,13 +498,17 @@ private:
                 }
                 return;
             }
+            hostLog(QStringLiteral("yue2 complete id=%1 artifacts=%2").arg(jobId).arg(m_providerArtifacts.size()));
             if (socket) {
                 socket->write(response(true, "complete", { { "jobId", jobId }, { "resultManifest", "jobs/" + jobId + "/result.json" } }));
             }
-        } else if (socket) {
-            socket->write(response(false, "failed", {
-                { "jobId", jobId }, { "exitCode", exitCode }, { "log", m_providerLog.join('\n') }
-            }));
+        } else {
+            hostLog(QStringLiteral("yue2 failed id=%1 exitCode=%2").arg(jobId).arg(exitCode));
+            if (socket) {
+                socket->write(response(false, "failed", {
+                    { "jobId", jobId }, { "exitCode", exitCode }, { "log", m_providerLog.join('\n') }
+                }));
+            }
         }
     }
 
@@ -430,6 +521,7 @@ private:
             return;
         }
         const QString activeJobId = m_activeJobId;
+        hostLog(QStringLiteral("cancel id=%1").arg(activeJobId));
         if (m_providerProcess) {
             QProcess* process = m_providerProcess;
             m_providerProcess = nullptr;
@@ -518,6 +610,7 @@ int main(int argc, char* argv[])
     parser.addOption({ "yue2-cli", "Path to the native YuE2 (audio.cpp) audiocpp_cli executable.", "path" });
     parser.addOption({ "yue2-model", "Directory holding the YuE2 GGUF model and sidecars.", "path" });
     parser.addOption({ "yue2-threads", "Worker threads for the native YuE2 provider.", "n", "8" });
+    parser.addOption({ "log-file", "Path to the runtime host diagnostic log.", "path" });
     parser.addOption(QCommandLineOption("self-test", "Run authenticated loopback and test-provider verification."));
     parser.process(application);
 
@@ -525,6 +618,18 @@ int main(int argc, char* argv[])
     if (workspace.isEmpty()) {
         return 2;
     }
+
+    QString logPath = parser.value("log-file");
+    if (logPath.isEmpty()) {
+        logPath = QDir(workspace).filePath("runtime-host.log");
+    }
+    openHostLog(logPath);
+    qInstallMessageHandler(hostMessageHandler);
+#ifdef Q_OS_WIN
+    SetUnhandledExceptionFilter(hostCrashHandler);
+#endif
+    hostLog(QStringLiteral("host start pid=%1 workspace=%2").arg(QCoreApplication::applicationPid()).arg(workspace));
+
     if (parser.isSet("self-test")) {
         return selfTest(workspace);
     }
