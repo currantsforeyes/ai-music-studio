@@ -11,6 +11,7 @@
 #include "ailibrary/assetkind.h"
 #include "ailibrary/globalassetcatalogue.h"
 #include "ailibrary/libraryassetstore.h"
+#include "aimodels/modelsettings.h"
 #include "aiproject/aiworkspace.h"
 #include "aistudio/view/aistudiostatusmodel.h"
 #include "songplan/songplan.h"
@@ -104,8 +105,13 @@ void AIStudioController::init()
     QObject::connect(m_runtimeHost.get(), &au::aijobs::RuntimeHostSupervisor::statusChanged,
                      AIStudioStatusModel::instance(), &AIStudioStatusModel::setRuntimeStatus);
     m_runtimeHost->setJobStatusHandler([this](const au::aicore::JobStatus& status) { recordJobStatus(status); });
+    applyModelSettings();
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::workspaceEnableRequested,
                      m_runtimeHost.get(), [this] { enableProjectWorkspace(); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::modelCliPathSetRequested,
+                     m_runtimeHost.get(), [this](const QString& path) { setModelCliPath(path); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::modelModelPathSetRequested,
+                     m_runtimeHost.get(), [this](const QString& path) { setModelModelPath(path); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::libraryRefreshRequested,
                      m_runtimeHost.get(), [this] { refreshWorkspaceStatus(); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::libraryImportRequested,
@@ -1007,6 +1013,52 @@ void AIStudioController::insertJobOutput(const QString& jobId)
     } else {
         AIStudioStatusModel::instance()->setWorkspaceStatus(error);
     }
+}
+
+void AIStudioController::applyModelSettings()
+{
+    const au::aimodels::ProviderConfig yue2
+        = au::aimodels::ModelSettings::provider(QStringLiteral("yue2-native"));
+    const QString envCli = qEnvironmentVariable("AI_YUE2_CLI");
+    const QString envModel = qEnvironmentVariable("AI_YUE2_MODEL");
+    const bool configured = yue2.isConfigured() || (!envCli.isEmpty() && !envModel.isEmpty());
+    m_runtimeHost->setProviderConfig(yue2.cliPath, yue2.modelPath,
+                                     yue2.threads > 0 ? QString::number(yue2.threads) : QString());
+    AIStudioStatusModel::instance()->updateModelCliPath(yue2.cliPath.isEmpty() ? envCli : yue2.cliPath);
+    AIStudioStatusModel::instance()->updateModelModelPath(yue2.modelPath.isEmpty() ? envModel : yue2.modelPath);
+    AIStudioStatusModel::instance()->setModelConfigured(configured);
+}
+
+void AIStudioController::setModelCliPath(const QString& path)
+{
+    au::aimodels::ProviderConfig yue2 = au::aimodels::ModelSettings::provider(QStringLiteral("yue2-native"));
+    yue2.cliPath = path;
+    QString error;
+    if (!au::aimodels::ModelSettings::setProvider(yue2, &error)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
+        return;
+    }
+    applyModelSettings();
+    if (m_runtimeHost && !m_runtimeHost->isBusy() && !m_activeWorkspace.isEmpty()) {
+        m_runtimeHost->restartInWorkspace(m_activeWorkspace);
+    }
+    AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Saved the YuE2 CLI path"));
+}
+
+void AIStudioController::setModelModelPath(const QString& path)
+{
+    au::aimodels::ProviderConfig yue2 = au::aimodels::ModelSettings::provider(QStringLiteral("yue2-native"));
+    yue2.modelPath = path;
+    QString error;
+    if (!au::aimodels::ModelSettings::setProvider(yue2, &error)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
+        return;
+    }
+    applyModelSettings();
+    if (m_runtimeHost && !m_runtimeHost->isBusy() && !m_activeWorkspace.isEmpty()) {
+        m_runtimeHost->restartInWorkspace(m_activeWorkspace);
+    }
+    AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Saved the YuE2 model folder"));
 }
 
 void AIStudioController::submitYue2Job(const QString& lyrics, const QString& style)

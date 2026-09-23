@@ -66,6 +66,21 @@ QVariantMap AIStudioStatusModel::planDetail() const
     return m_planDetail;
 }
 
+QString AIStudioStatusModel::modelCliPath() const
+{
+    return m_modelCliPath;
+}
+
+QString AIStudioStatusModel::modelModelPath() const
+{
+    return m_modelModelPath;
+}
+
+bool AIStudioStatusModel::modelConfigured() const
+{
+    return m_modelConfigured;
+}
+
 void AIStudioStatusModel::setRuntimeStatus(const QString& status)
 {
     if (m_runtimeStatus == status) {
@@ -147,9 +162,46 @@ void AIStudioStatusModel::setPlanDetail(const QVariantMap& planDetail)
     emit planDetailChanged();
 }
 
+void AIStudioStatusModel::updateModelCliPath(const QString& path)
+{
+    if (m_modelCliPath == path) {
+        return;
+    }
+    m_modelCliPath = path;
+    emit modelPathsChanged();
+}
+
+void AIStudioStatusModel::updateModelModelPath(const QString& path)
+{
+    if (m_modelModelPath == path) {
+        return;
+    }
+    m_modelModelPath = path;
+    emit modelPathsChanged();
+}
+
+void AIStudioStatusModel::setModelConfigured(bool configured)
+{
+    if (m_modelConfigured == configured) {
+        return;
+    }
+    m_modelConfigured = configured;
+    emit modelPathsChanged();
+}
+
 void AIStudioStatusModel::enableProjectWorkspace()
 {
     emit workspaceEnableRequested();
+}
+
+void AIStudioStatusModel::setModelCliPath(const QString& path)
+{
+    emit modelCliPathSetRequested(path);
+}
+
+void AIStudioStatusModel::setModelModelPath(const QString& path)
+{
+    emit modelModelPathSetRequested(path);
 }
 
 void AIStudioStatusModel::refreshLibrary()

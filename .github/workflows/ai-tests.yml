@@ -14,6 +14,7 @@ on:
       - 'src/aistudio/**'
       - 'src/aimusic/**'
       - 'src/songplan/**'
+      - 'src/aimodels/**'
       - 'src/appshell/qml/Audacity/AppShell/ProjectPage/AIStudioPanel.qml'
       - 'src/appshell/qml/Audacity/AppShell/LibraryPage/**'
       - 'tools/native-yue2-benchmark.ps1'
@@ -110,13 +111,13 @@ jobs:
       - name: Build AI modules and tests
         run: |
           source $HOME/build_tools/environment.sh
-          ninja -C build.debug aistudio songplan ai_runtime_host ailibrary_tests aijobs_tests songplan_tests
+          ninja -C build.debug aistudio songplan aimodels ai_runtime_host ailibrary_tests aijobs_tests songplan_tests aimodels_tests
 
       - name: Run AI unit tests
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          ctest --test-dir build.debug -R 'ailibrary_tests|aijobs_tests|songplan_tests' --output-on-failure
+          ctest --test-dir build.debug -R 'ailibrary_tests|aijobs_tests|songplan_tests|aimodels_tests' --output-on-failure
 
       - name: Prepare ccache
         if: always()

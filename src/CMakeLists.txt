@@ -52,6 +52,7 @@ add_subdirectory(songplan)
 add_subdirectory(aijobs)
 add_subdirectory(aiproject)
 add_subdirectory(ailibrary)
+add_subdirectory(aimodels)
 add_subdirectory(aistudio)
 
 add_subdirectory(extensions/native)

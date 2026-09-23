@@ -59,6 +59,9 @@ private:
     void retryJob(const QString& jobId);
     void insertJobOutput(const QString& jobId);
     void submitYue2Job(const QString& lyrics, const QString& style);
+    void applyModelSettings();
+    void setModelCliPath(const QString& path);
+    void setModelModelPath(const QString& path);
     void refreshPlans();
     void createPlan(const QString& name);
     void loadPlan(const QString& planId);

@@ -21,6 +21,9 @@ class AIStudioStatusModel final : public QObject
     Q_PROPERTY(QVariantList jobs READ jobs NOTIFY jobsChanged)
     Q_PROPERTY(QVariantList plans READ plans NOTIFY plansChanged)
     Q_PROPERTY(QVariantMap planDetail READ planDetail NOTIFY planDetailChanged)
+    Q_PROPERTY(QString modelCliPath READ modelCliPath NOTIFY modelPathsChanged)
+    Q_PROPERTY(QString modelModelPath READ modelModelPath NOTIFY modelPathsChanged)
+    Q_PROPERTY(bool modelConfigured READ modelConfigured NOTIFY modelPathsChanged)
 
 public:
     static AIStudioStatusModel* instance();
@@ -34,6 +37,9 @@ public:
     QVariantList jobs() const;
     QVariantList plans() const;
     QVariantMap planDetail() const;
+    QString modelCliPath() const;
+    QString modelModelPath() const;
+    bool modelConfigured() const;
     void setRuntimeStatus(const QString& status);
     void setWorkspaceStatus(const QString& status);
     void setLibraryAssets(const QVariantList& assets);
@@ -43,8 +49,13 @@ public:
     void setJobs(const QVariantList& jobs);
     void setPlans(const QVariantList& plans);
     void setPlanDetail(const QVariantMap& planDetail);
+    void updateModelCliPath(const QString& path);
+    void updateModelModelPath(const QString& path);
+    void setModelConfigured(bool configured);
 
     Q_INVOKABLE void enableProjectWorkspace();
+    Q_INVOKABLE void setModelCliPath(const QString& path);
+    Q_INVOKABLE void setModelModelPath(const QString& path);
     Q_INVOKABLE void refreshLibrary();
     Q_INVOKABLE void importLocalWav(const QString& sourcePath);
     Q_INVOKABLE void setLibraryAssetFavourite(const QString& assetId, bool favourite);
@@ -88,6 +99,9 @@ signals:
     void libraryFoldersChanged();
     void libraryStatusChanged();
     void workspaceEnableRequested();
+    void modelPathsChanged();
+    void modelCliPathSetRequested(const QString& path);
+    void modelModelPathSetRequested(const QString& path);
     void libraryRefreshRequested();
     void libraryImportRequested(const QString& sourcePath);
     void libraryAssetFavouriteRequested(const QString& assetId, bool favourite);
@@ -137,5 +151,8 @@ private:
     QVariantList m_jobs;
     QVariantList m_plans;
     QVariantMap m_planDetail;
+    QString m_modelCliPath;
+    QString m_modelModelPath;
+    bool m_modelConfigured = false;
 };
 }

@@ -45,6 +45,17 @@ Item {
         filter: [qsTrc("aistudio", "Audio (*.wav)")]
     }
 
+    FilePickerModel {
+        id: cliPicker
+        title: qsTrc("aistudio", "Select the YuE2 CLI executable")
+        filter: [qsTrc("aistudio", "Executable (*.exe)"), qsTrc("aistudio", "All files (*)")]
+    }
+
+    FilePickerModel {
+        id: modelPicker
+        title: qsTrc("aistudio", "Select the YuE2 model folder")
+    }
+
     ScrollView {
         id: panelScroll
         anchors.fill: parent
@@ -104,6 +115,63 @@ Item {
                     Layout.fillWidth: true
                     text: qsTrc("aistudio", "Voice Changer")
                     enabled: false
+                }
+            }
+
+            StyledTextLabel {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                opacity: 0.75
+                text: AIStudioStatus.modelConfigured
+                      ? qsTrc("aistudio", "YuE2 runtime ready")
+                      : qsTrc("aistudio", "Choose the YuE2 CLI and model folder to enable generation")
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+
+                StyledTextLabel { Layout.preferredWidth: 52; text: qsTrc("aistudio", "CLI") }
+                StyledTextLabel {
+                    Layout.fillWidth: true
+                    elide: Text.ElideMiddle
+                    opacity: 0.8
+                    text: AIStudioStatus.modelCliPath.length > 0
+                          ? AIStudioStatus.modelCliPath
+                          : qsTrc("aistudio", "Not set")
+                }
+                FlatButton {
+                    text: qsTrc("aistudio", "Choose…")
+                    onClicked: {
+                        const path = cliPicker.selectFile()
+                        if (path.length > 0) {
+                            AIStudioStatus.setModelCliPath(path)
+                        }
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+
+                StyledTextLabel { Layout.preferredWidth: 52; text: qsTrc("aistudio", "Model") }
+                StyledTextLabel {
+                    Layout.fillWidth: true
+                    elide: Text.ElideMiddle
+                    opacity: 0.8
+                    text: AIStudioStatus.modelModelPath.length > 0
+                          ? AIStudioStatus.modelModelPath
+                          : qsTrc("aistudio", "Not set")
+                }
+                FlatButton {
+                    text: qsTrc("aistudio", "Choose…")
+                    onClicked: {
+                        const path = modelPicker.selectDirectory()
+                        if (path.length > 0) {
+                            AIStudioStatus.setModelModelPath(path)
+                        }
+                    }
                 }
             }
 
@@ -396,7 +464,7 @@ Item {
             FlatButton {
                 Layout.alignment: Qt.AlignHCenter
                 text: qsTrc("aistudio", "Generate")
-                enabled: lyricsField.text.trim().length > 0
+                enabled: lyricsField.text.trim().length > 0 && AIStudioStatus.modelConfigured
                 onClicked: AIStudioStatus.runYue2Job(lyricsField.text, styleField.text)
             }
 

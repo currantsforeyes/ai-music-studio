@@ -134,24 +134,31 @@ void RuntimeHostSupervisor::start()
     QDir().mkpath(m_workspace);
     m_token = QUuid::createUuid().toString(QUuid::WithoutBraces);
     QStringList arguments { "--workspace", m_workspace, "--token", m_token };
-    // Native YuE2 provider configuration is supplied through the environment so
-    // the editor process does not need to know model paths; the provider stays
-    // optional and the runtime host starts without it when unset.
-    const QString yue2Cli = qEnvironmentVariable("AI_YUE2_CLI");
+    // Native YuE2 provider configuration comes from in-app model settings,
+    // falling back to the AI_YUE2_* environment so the provider stays optional
+    // and the runtime host still starts when nothing is configured.
+    const QString yue2Cli = !m_yue2Cli.isEmpty() ? m_yue2Cli : qEnvironmentVariable("AI_YUE2_CLI");
     if (!yue2Cli.isEmpty()) {
         arguments << "--yue2-cli" << yue2Cli;
     }
-    const QString yue2Model = qEnvironmentVariable("AI_YUE2_MODEL");
+    const QString yue2Model = !m_yue2Model.isEmpty() ? m_yue2Model : qEnvironmentVariable("AI_YUE2_MODEL");
     if (!yue2Model.isEmpty()) {
         arguments << "--yue2-model" << yue2Model;
     }
-    const QString yue2Threads = qEnvironmentVariable("AI_YUE2_THREADS");
+    const QString yue2Threads = !m_yue2Threads.isEmpty() ? m_yue2Threads : qEnvironmentVariable("AI_YUE2_THREADS");
     if (!yue2Threads.isEmpty()) {
         arguments << "--yue2-threads" << yue2Threads;
     }
     setStatus(tr("Starting local runtime host"));
     m_process->start(executable, arguments);
     m_startupTimer->start(5000);
+}
+
+void RuntimeHostSupervisor::setProviderConfig(const QString& yue2Cli, const QString& yue2Model, const QString& yue2Threads)
+{
+    m_yue2Cli = yue2Cli;
+    m_yue2Model = yue2Model;
+    m_yue2Threads = yue2Threads;
 }
 
 void RuntimeHostSupervisor::restartInWorkspace(const QString& workspace)

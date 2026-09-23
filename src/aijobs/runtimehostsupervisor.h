@@ -27,6 +27,9 @@ public:
 
     void start();
     void restartInWorkspace(const QString& workspace);
+    //! Configure the native YuE2 provider from in-app settings. Empty values
+    //! fall back to the AI_YUE2_* environment variables.
+    void setProviderConfig(const QString& yue2Cli, const QString& yue2Model, const QString& yue2Threads);
     void submitTestJob();
     void submitFailureTest();
     QString statusText() const;
@@ -61,6 +64,9 @@ private:
     QString m_workspace;
     QString m_activeJobId;
     QString m_activeProviderId;
+    QString m_yue2Cli;
+    QString m_yue2Model;
+    QString m_yue2Threads;
     bool m_healthy = false;
     JobStatusHandler m_jobStatusHandler;
 };

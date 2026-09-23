@@ -1,0 +1,102 @@
+/*
+ * Audacity: A Digital Audio Editor
+ */
+#include <gtest/gtest.h>
+
+#include <QDir>
+#include <QFile>
+#include <QTemporaryDir>
+
+#include "aimodels/modelsettings.h"
+
+namespace au::aimodels {
+namespace {
+class ModelSettingsTests : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        ASSERT_TRUE(m_dir.isValid());
+        ModelSettings::setConfigFilePathForTesting(QDir(m_dir.path()).filePath("aimodels.json"));
+    }
+
+    void TearDown() override
+    {
+        ModelSettings::setConfigFilePathForTesting(QString());
+    }
+
+    QTemporaryDir m_dir;
+};
+}
+
+TEST_F(ModelSettingsTests, ListsBuiltInProviderUnconfigured)
+{
+    const ProviderConfig yue2 = ModelSettings::provider("yue2-native");
+    EXPECT_EQ(yue2.displayName, QStringLiteral("YuE2"));
+    EXPECT_FALSE(yue2.isConfigured());
+    EXPECT_TRUE(yue2.cliPath.isEmpty());
+}
+
+TEST_F(ModelSettingsTests, PersistsAndReloadsProviderPaths)
+{
+    ProviderConfig config = ModelSettings::provider("yue2-native");
+    config.cliPath = QStringLiteral("D:/tools/audiocpp_cli.exe");
+    config.modelPath = QStringLiteral("D:/models/yue2-q4");
+    config.threads = 16;
+
+    QString error;
+    ASSERT_TRUE(ModelSettings::setProvider(config, &error)) << error.toStdString();
+    EXPECT_TRUE(QFile::exists(ModelSettings::configFilePath()));
+
+    const ProviderConfig reloaded = ModelSettings::provider("yue2-native");
+    EXPECT_TRUE(reloaded.isConfigured());
+    EXPECT_EQ(reloaded.cliPath, config.cliPath);
+    EXPECT_EQ(reloaded.modelPath, config.modelPath);
+    EXPECT_EQ(reloaded.threads, 16);
+}
+
+TEST_F(ModelSettingsTests, KeepsUnconfiguredFieldsAccountedFor)
+{
+    ProviderConfig config;
+    config.id = "yue2-native";
+    config.displayName = "YuE2";
+    config.modelPath = QStringLiteral("D:/models/yue2-q4");
+    QString error;
+    ASSERT_TRUE(ModelSettings::setProvider(config, &error)) << error.toStdString();
+
+    const ProviderConfig reloaded = ModelSettings::provider("yue2-native");
+    EXPECT_FALSE(reloaded.isConfigured()); // no CLI path yet
+    EXPECT_EQ(reloaded.modelPath, config.modelPath);
+    EXPECT_TRUE(ModelSettings::providers().size() >= 1);
+}
+
+TEST_F(ModelSettingsTests, RejectsProvidersWithoutId)
+{
+    ProviderConfig config;
+    QString error;
+    EXPECT_FALSE(ModelSettings::setProvider(config, &error));
+    EXPECT_FALSE(error.isEmpty());
+}
+
+TEST_F(ModelSettingsTests, PreservesExtraProviders)
+{
+    ProviderConfig other;
+    other.id = "custom-provider";
+    other.displayName = "Custom";
+    other.cliPath = "cli";
+    other.modelPath = "model";
+    QString error;
+    ASSERT_TRUE(ModelSettings::setProvider(other, &error)) << error.toStdString();
+
+    const ProviderConfigList all = ModelSettings::providers();
+    bool foundCustom = false;
+    bool foundYue2 = false;
+    for (const ProviderConfig& config : all) {
+        foundCustom = foundCustom || config.id == "custom-provider";
+        foundYue2 = foundYue2 || config.id == "yue2-native";
+    }
+    EXPECT_TRUE(foundCustom);
+    EXPECT_TRUE(foundYue2);
+}
+
+}
