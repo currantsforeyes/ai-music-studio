@@ -5,6 +5,8 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
@@ -141,6 +143,40 @@ TEST(JobStoreTests, ResolvesCompletedResultAssetUntilInserted)
     error.clear();
     EXPECT_TRUE(JobStore::resultAssetPath(workspace, "job-2", &error).isEmpty());
     EXPECT_FALSE(error.isEmpty());
+}
+
+TEST(JobStoreTests, ResolvesCompletedJobArtifacts)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString projectPath = directory.filePath("jobstore.aup4");
+    ASSERT_TRUE(aiproject::WorkspaceStore::create(projectPath));
+    const QString workspace = aiproject::WorkspaceStore::workspacePathForProject(projectPath);
+
+    const QString jobDirectory = QDir(workspace).filePath("jobs/job-art");
+    ASSERT_TRUE(QDir().mkpath(jobDirectory));
+    QFile score(QDir(jobDirectory).filePath("score.abc"));
+    ASSERT_TRUE(score.open(QIODevice::WriteOnly));
+    score.write("X:1\nQ:1/4=120\nK:C\n");
+    score.close();
+    QFile result(QDir(jobDirectory).filePath("result.json"));
+    ASSERT_TRUE(result.open(QIODevice::WriteOnly));
+    result.write(QJsonDocument(QJsonObject {
+        { "asset", "output.wav" },
+        { "artifacts", QJsonArray { QJsonObject { { "id", "score" }, { "path", "jobs/job-art/score.abc" } } } }
+    }).toJson(QJsonDocument::Compact));
+    result.close();
+
+    QString error;
+    aicore::JobStatus status = makeJob("job-art", aicore::JobState::Complete);
+    status.resultManifest = "jobs/job-art/result.json";
+    ASSERT_TRUE(JobStore::upsert(workspace, status, &error));
+
+    const QList<JobStore::JobArtifact> artifacts = JobStore::resultArtifacts(workspace, "job-art", &error);
+    ASSERT_EQ(artifacts.size(), 1);
+    EXPECT_EQ(artifacts.front().id, QStringLiteral("score"));
+    EXPECT_TRUE(artifacts.front().path.endsWith(QStringLiteral("score.abc")));
+    EXPECT_TRUE(QFileInfo::exists(artifacts.front().path));
 }
 
 }

@@ -34,5 +34,13 @@ public:
     // errorMessage when the job is incomplete, already inserted, or missing.
     static QString resultAssetPath(const QString& workspacePath, const QString& jobId,
                                    QString* errorMessage = nullptr);
+
+    struct JobArtifact {
+        QString id;
+        QString path; // absolute
+    };
+    // Artifacts (for example the YuE2 score/ABC) recorded by a completed job.
+    static QList<JobArtifact> resultArtifacts(const QString& workspacePath, const QString& jobId,
+                                              QString* errorMessage = nullptr);
 };
 }

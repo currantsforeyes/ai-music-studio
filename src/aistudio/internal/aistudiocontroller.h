@@ -69,6 +69,7 @@ private:
     void savePlanRevision();
     void pushPlanDetail();
     void registerPlanAsset(const au::songplan::SongPlan& plan);
+    void registerJobArtifacts(const QString& jobId, const QString& resultManifest);
     std::shared_ptr<au::aijobs::RuntimeHostSupervisor> m_runtimeHost;
     QString m_activeWorkspace;
     au::songplan::SongPlan m_planDraft;

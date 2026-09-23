@@ -98,7 +98,8 @@ bool parseYue2Parameters(const QByteArray& parametersJson,
     return true;
 }
 
-QStringList buildYue2Arguments(const Yue2JobParameters& parameters, const QString& outputPath)
+QStringList buildYue2Arguments(const Yue2JobParameters& parameters, const QString& outputPath,
+                              const QString& artifactDirectory)
 {
     QStringList arguments {
         QStringLiteral("--task"), QStringLiteral("gen"),
@@ -118,8 +119,13 @@ QStringList buildYue2Arguments(const Yue2JobParameters& parameters, const QStrin
               << QStringLiteral("--request-option") << QStringLiteral("num_inference_steps=%1").arg(parameters.steps)
               << QStringLiteral("--session-option") << QStringLiteral("yue2.model_gguf=%1").arg(parameters.mainModel)
               << QStringLiteral("--session-option") << QStringLiteral("yue2.vae_gguf=%1").arg(parameters.decoderModel)
-              << QStringLiteral("--out") << outputPath
-              << QStringLiteral("--metrics")
+              << QStringLiteral("--out") << outputPath;
+
+    if (!artifactDirectory.trimmed().isEmpty()) {
+        arguments << QStringLiteral("--out-dir") << artifactDirectory;
+    }
+
+    arguments << QStringLiteral("--metrics")
               << QStringLiteral("--log");
     return arguments;
 }

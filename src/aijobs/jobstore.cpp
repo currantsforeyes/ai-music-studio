@@ -273,3 +273,47 @@ QString JobStore::resultAssetPath(const QString& workspacePath, const QString& j
     }
     return {};
 }
+
+QList<JobStore::JobArtifact> JobStore::resultArtifacts(const QString& workspacePath, const QString& jobId,
+                                                       QString* errorMessage)
+{
+    QJsonObject root;
+    if (!readManifest(workspacePath, &root, errorMessage)) {
+        return {};
+    }
+    for (const QJsonValue& value : root.value("jobs").toArray()) {
+        const QJsonObject job = value.toObject();
+        if (job.value("jobId").toString() != jobId) {
+            continue;
+        }
+        aicore::JobStatus status;
+        if (!fromJson(job, &status) || status.state != aicore::JobState::Complete) {
+            if (errorMessage) {
+                *errorMessage = QObject::tr("The AI job is not complete");
+            }
+            return {};
+        }
+        const QString resultPath = QDir(workspacePath).filePath(QString::fromStdString(status.resultManifest));
+        QFile result(resultPath);
+        if (!result.open(QIODevice::ReadOnly)) {
+            break;
+        }
+        const QJsonObject manifest = QJsonDocument::fromJson(result.readAll()).object();
+        QList<JobArtifact> artifacts;
+        for (const QJsonValue& entry : manifest.value("artifacts").toArray()) {
+            const QJsonObject object = entry.toObject();
+            JobArtifact artifact;
+            artifact.id = object.value("id").toString();
+            const QString path = object.value("path").toString();
+            artifact.path = QDir::isAbsolutePath(path) ? path : QDir(workspacePath).filePath(path);
+            if (!artifact.id.isEmpty() && !artifact.path.isEmpty()) {
+                artifacts.append(artifact);
+            }
+        }
+        return artifacts;
+    }
+    if (errorMessage) {
+        *errorMessage = QObject::tr("The AI job no longer exists in the workspace manifest");
+    }
+    return {};
+}

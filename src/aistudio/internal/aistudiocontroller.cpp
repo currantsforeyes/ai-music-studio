@@ -853,6 +853,9 @@ void AIStudioController::recordJobStatus(const au::aicore::JobStatus& status)
         AIStudioStatusModel::instance()->setWorkspaceStatus(
             QObject::tr("Provider job %1 in the AI workspace")
                 .arg(QString::fromStdString(au::aicore::toString(status.state))));
+        if (status.state == au::aicore::JobState::Complete) {
+            registerJobArtifacts(QString::fromStdString(status.id.value), QString::fromStdString(status.resultManifest));
+        }
         refreshJobs();
     } else {
         AIStudioStatusModel::instance()->setWorkspaceStatus(error);
@@ -1238,5 +1241,75 @@ void AIStudioController::registerPlanAsset(const au::songplan::SongPlan& plan)
         AIStudioStatusModel::instance()->setLibraryStatus(error);
         return;
     }
+    refreshLibraryAssets();
+}
+
+void AIStudioController::registerJobArtifacts(const QString& jobId, const QString& resultManifest)
+{
+    Q_UNUSED(resultManifest);
+    if (m_activeWorkspace.isEmpty()) {
+        return;
+    }
+    QString error;
+    const QList<au::aijobs::JobStore::JobArtifact> artifacts
+        = au::aijobs::JobStore::resultArtifacts(m_activeWorkspace, jobId, &error);
+    if (!error.isEmpty() || artifacts.isEmpty()) {
+        return;
+    }
+
+    for (const au::aijobs::JobStore::JobArtifact& artifact : artifacts) {
+        const QFileInfo file(artifact.path);
+        const bool isScore = artifact.id.contains(QStringLiteral("score"), Qt::CaseInsensitive)
+                             || file.suffix().compare(QStringLiteral("abc"), Qt::CaseInsensitive) == 0;
+        if (!file.exists() || !isScore) {
+            continue;
+        }
+
+        // Preserve the raw provider score as a Library asset ("source before render").
+        au::ailibrary::ProjectAsset asset;
+        asset.id = QStringLiteral("score:") + jobId;
+        asset.name = QStringLiteral("YuE2 score %1").arg(jobId);
+        asset.kind = QStringLiteral("song_plan");
+        asset.origin = QStringLiteral("yue2");
+        asset.filePath = QDir(m_activeWorkspace).relativeFilePath(artifact.path);
+        asset.updatedAt = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
+        asset.createdAt = asset.updatedAt;
+        asset.status = QStringLiteral("available");
+
+        au::ailibrary::AssetProvenance provenance;
+        provenance.id = QStringLiteral("score-prov:") + jobId;
+        provenance.assetId = asset.id;
+        provenance.operation = QStringLiteral("song_plan");
+        provenance.providerId = QStringLiteral("yue2-native");
+        provenance.jobId = jobId;
+        provenance.createdAt = asset.updatedAt;
+
+        if (!au::ailibrary::LibraryAssetStore::upsertProjectAsset(m_activeWorkspace, asset, &provenance, &error)) {
+            AIStudioStatusModel::instance()->setLibraryStatus(error);
+            continue;
+        }
+
+        // Expose the score as an editable (initially scaffold) Song Plan revision.
+        if (au::songplan::SongPlanStore::latestRevision(m_activeWorkspace, jobId, nullptr) > 0) {
+            continue;
+        }
+        au::songplan::SongPlan plan;
+        plan.id = jobId;
+        plan.revision = 1;
+        plan.sourceProviderId = QStringLiteral("yue2-native");
+        plan.sourceFormat = QStringLiteral("abc");
+        plan.sourceScoreAssetId = asset.id;
+        QFile scoreFile(artifact.path);
+        if (scoreFile.open(QIODevice::ReadOnly)) {
+            au::songplan::applyAbcHeader(scoreFile.readAll(), &plan);
+        }
+        if (!au::songplan::SongPlanStore::saveRevision(m_activeWorkspace, plan, &error)) {
+            AIStudioStatusModel::instance()->setLibraryStatus(error);
+            continue;
+        }
+        registerPlanAsset(plan);
+    }
+
+    refreshPlans();
     refreshLibraryAssets();
 }

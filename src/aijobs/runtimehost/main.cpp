@@ -8,8 +8,10 @@
 #include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QPair>
 #include <QPointer>
 #include <QProcess>
 #include <QProcessEnvironment>
@@ -296,6 +298,7 @@ private:
         m_activeJobSocket = socket;
         m_providerOutputPath = outputPath;
         m_providerLog.clear();
+        m_providerArtifacts.clear();
         m_cancelled = false;
         socket->write(response(true, "accepted", { { "jobId", jobId }, { "state", "running" } }));
         sendProgressValue(jobId, 0.05, QStringLiteral("Starting YuE2"));
@@ -309,7 +312,8 @@ private:
         connect(m_providerProcess, &QProcess::readyReadStandardError, this, [this] { drainYue2Stderr(); });
         connect(m_providerProcess, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
                 [this](int exitCode, QProcess::ExitStatus) { finishYue2Job(exitCode); });
-        m_providerProcess->start(parameters.cliPath, au::aijobs::buildYue2Arguments(parameters, outputPath));
+        m_providerProcess->start(parameters.cliPath,
+                                 au::aijobs::buildYue2Arguments(parameters, outputPath, jobDirectory));
         if (!m_providerProcess->waitForStarted(5000)) {
             socket->write(response(false, "provider-start-failed", { { "jobId", jobId } }));
             m_providerProcess->deleteLater();
@@ -333,6 +337,14 @@ private:
             const au::aijobs::Yue2Progress progress = au::aijobs::yue2ProgressFromLogLine(line);
             if (progress.recognized) {
                 sendProgressValue(m_activeJobId, progress.progress, progress.message);
+            }
+            // The CLI prints artifact_out[<id>]=<path> for each persisted artifact.
+            if (line.startsWith(QStringLiteral("artifact_out["))) {
+                const int close = line.indexOf(']');
+                const int equals = close >= 0 ? line.indexOf('=', close + 1) : -1;
+                if (close > 13 && equals > close) {
+                    m_providerArtifacts.append({ line.mid(13, close - 13), line.mid(equals + 1) });
+                }
             }
         }
     }
@@ -376,12 +388,20 @@ private:
 
         const QString jobDirectory = QDir(m_workspace).filePath("jobs/" + jobId);
         if (exitCode == 0 && QFileInfo::exists(outputPath)) {
+            QJsonArray artifacts;
+            for (const auto& artifact : m_providerArtifacts) {
+                artifacts.append(QJsonObject {
+                    { "id", artifact.first },
+                    { "path", QDir(m_workspace).relativeFilePath(artifact.second) }
+                });
+            }
             const QJsonObject manifest {
                 { "protocolVersion", ProtocolVersion },
                 { "jobId", jobId },
                 { "providerId", "yue2-native" },
                 { "state", "complete" },
-                { "asset", "output.wav" }
+                { "asset", "output.wav" },
+                { "artifacts", artifacts }
             };
             QFile manifestFile(QDir(jobDirectory).filePath("result.json"));
             if (!manifestFile.open(QIODevice::WriteOnly | QIODevice::Truncate)
@@ -441,6 +461,7 @@ private:
     QProcess* m_providerProcess = nullptr;
     QString m_providerOutputPath;
     QStringList m_providerLog;
+    QList<QPair<QString, QString>> m_providerArtifacts;
     bool m_cancelled = false;
 };
 

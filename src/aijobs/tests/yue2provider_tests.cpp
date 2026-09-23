@@ -54,12 +54,14 @@ TEST(Yue2ProviderTests, BuildsRequiredArguments)
     parameters.steps = 8;
     parameters.threads = 4;
 
-    const QStringList arguments = buildYue2Arguments(parameters, QStringLiteral("D:/job/output.wav"));
+    const QStringList arguments = buildYue2Arguments(parameters, QStringLiteral("D:/job/output.wav"), QStringLiteral("D:/job"));
     EXPECT_TRUE(arguments.contains(QStringLiteral("--task")));
     EXPECT_TRUE(arguments.contains(QStringLiteral("gen")));
     EXPECT_TRUE(arguments.contains(QStringLiteral("yue2")));
     EXPECT_TRUE(arguments.contains(QStringLiteral("D:/models/yue2-q4")));
     EXPECT_TRUE(arguments.contains(QStringLiteral("D:/job/output.wav")));
+    EXPECT_TRUE(arguments.contains(QStringLiteral("--out-dir")));
+    EXPECT_TRUE(arguments.contains(QStringLiteral("D:/job")));
     EXPECT_TRUE(arguments.contains(QStringLiteral("style=pop")));
     EXPECT_TRUE(arguments.contains(QStringLiteral("seed=7")));
     EXPECT_TRUE(arguments.contains(QStringLiteral("num_inference_steps=8")));

@@ -34,8 +34,11 @@ bool parseYue2Parameters(const QByteArray& parametersJson,
                          Yue2JobParameters* parameters,
                          QString* errorMessage = nullptr);
 
-// Builds the audiocpp_cli argument list for one generation job.
-QStringList buildYue2Arguments(const Yue2JobParameters& parameters, const QString& outputPath);
+// Builds the audiocpp_cli argument list for one generation job. When
+// artifactDirectory is set, generated artifacts (such as the YuE2 score/ABC)
+// are written there via --out-dir.
+QStringList buildYue2Arguments(const Yue2JobParameters& parameters, const QString& outputPath,
+                              const QString& artifactDirectory = QString());
 
 // A coarse progress milestone derived from one audiocpp_cli log line. The CLI
 // does not report a percentage, so we map the stage-timing lines it prints.

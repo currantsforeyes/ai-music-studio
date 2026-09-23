@@ -30,4 +30,42 @@ bool validate(const SongPlan& plan, QStringList* errors)
     }
     return problems.isEmpty();
 }
+
+int applyAbcHeader(const QByteArray& abc, SongPlan* plan)
+{
+    if (!plan) {
+        return 0;
+    }
+    int recognized = 0;
+    const QStringList lines = QString::fromUtf8(abc).split('\n');
+    for (const QString& raw : lines) {
+        const QString line = raw.trimmed();
+        if (line.startsWith(QLatin1String("Q:"))) {
+            QString value = line.mid(2).trimmed();
+            const int equals = value.indexOf('=');
+            if (equals >= 0) {
+                value = value.mid(equals + 1);
+            }
+            bool ok = false;
+            const double tempo = value.toDouble(&ok);
+            if (ok && tempo > 0.0) {
+                plan->tempo = tempo;
+                ++recognized;
+            }
+        } else if (line.startsWith(QLatin1String("M:"))) {
+            const QString value = line.mid(2).trimmed();
+            if (!value.isEmpty()) {
+                plan->timeSignature = value;
+                ++recognized;
+            }
+        } else if (line.startsWith(QLatin1String("K:"))) {
+            const QString value = line.mid(2).trimmed();
+            if (!value.isEmpty()) {
+                plan->key = value;
+                ++recognized;
+            }
+        }
+    }
+    return recognized;
+}
 }

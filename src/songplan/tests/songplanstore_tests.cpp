@@ -5,6 +5,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QByteArray>
 #include <QTemporaryDir>
 
 #include "songplan/songplan.h"
@@ -190,6 +191,18 @@ TEST(SongPlanTests, ValidateReportsStructuralProblems)
     plan.sections[0].endSeconds = 0.0;
     EXPECT_FALSE(validate(plan, &errors));
     EXPECT_FALSE(errors.isEmpty());
+}
+
+TEST(SongPlanTests, AppliesAbcHeaderFields)
+{
+    SongPlan plan;
+    plan.id = "abc";
+    const QByteArray abc("X:1\nT:Test\nM:4/4\nQ:1/4=132\nK:Am\n[V1]\n...\n");
+    const int recognized = applyAbcHeader(abc, &plan);
+    EXPECT_GE(recognized, 3);
+    EXPECT_DOUBLE_EQ(plan.tempo, 132.0);
+    EXPECT_EQ(plan.timeSignature, QStringLiteral("4/4"));
+    EXPECT_EQ(plan.key, QStringLiteral("Am"));
 }
 
 }

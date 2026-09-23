@@ -3,6 +3,7 @@
  */
 #pragma once
 
+#include <QByteArray>
 #include <QList>
 #include <QString>
 #include <QStringList>
@@ -47,4 +48,8 @@ struct SongPlan {
 
 // Basic structural validation. Returns false and fills errors when invalid.
 bool validate(const SongPlan& plan, QStringList* errors = nullptr);
+
+// Best-effort extraction of tempo/key/time signature from an ABC header into
+// the plan. Returns the number of recognized fields (zero is not an error).
+int applyAbcHeader(const QByteArray& abc, SongPlan* plan);
 }
