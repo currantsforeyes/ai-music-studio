@@ -10,7 +10,7 @@
 
 #include <algorithm>
 
-using namespace au::aijobs;
+namespace au::aijobs {
 
 bool parseYue2Parameters(const QByteArray& parametersJson,
                          const QString& defaultCliPath,
@@ -152,4 +152,5 @@ Yue2Progress yue2ProgressFromLogLine(const QString& line)
         }
     }
     return {};
+}
 }

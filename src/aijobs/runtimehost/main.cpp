@@ -276,7 +276,7 @@ private:
             socket->write(response(false, "job-already-running", { { "jobId", m_activeJobId } }));
             return;
         }
-        Yue2JobParameters parameters;
+        au::aijobs::Yue2JobParameters parameters;
         QString error;
         if (!au::aijobs::parseYue2Parameters(request.value("parameters").toString().toUtf8(),
                                              m_yue2Cli, m_yue2Model, m_yue2Threads, &parameters, &error)) {
