@@ -854,14 +854,19 @@ void AIStudioController::recordJobStatus(const au::aicore::JobStatus& status)
     if (m_activeWorkspace.isEmpty()) {
         return;
     }
+    const QString jobId = QString::fromStdString(status.id.value);
     QString error;
     if (au::aijobs::JobStore::upsert(m_activeWorkspace, status, &error)) {
         AIStudioStatusModel::instance()->setWorkspaceStatus(
             QObject::tr("Provider job %1 in the AI workspace")
                 .arg(QString::fromStdString(au::aicore::toString(status.state))));
+        const bool terminal = au::aicore::isTerminal(status.state);
+        if (!terminal && QString::fromStdString(status.providerId) == QStringLiteral("yue2-native")) {
+            ensureJobPlaceholder(jobId);
+        }
         if (status.state == au::aicore::JobState::Complete) {
-            const QString jobId = QString::fromStdString(status.id.value);
             registerJobArtifacts(jobId, QString::fromStdString(status.resultManifest));
+            removeJobPlaceholder(jobId);
             // Generations are placed on the timeline automatically, so there is
             // no separate "insert" step for the user to perform.
             QString insertError;
@@ -869,11 +874,43 @@ void AIStudioController::recordJobStatus(const au::aicore::JobStatus& status)
             if (au::aijobs::JobStore::isInserted(m_activeWorkspace, jobId, &inserted, &insertError) && !inserted) {
                 insertJobOutput(jobId);
             }
+        } else if (terminal) {
+            removeJobPlaceholder(jobId);
         }
         refreshJobs();
     } else {
         AIStudioStatusModel::instance()->setWorkspaceStatus(error);
     }
+}
+
+void AIStudioController::ensureJobPlaceholder(const QString& jobId)
+{
+    if (m_jobPlaceholders.contains(jobId) || !tracks() || !globalContext()->currentProject()) {
+        return;
+    }
+    const au::trackedit::TrackId trackId = tracks()->addWaveTrack(2);
+    if (trackId < 0) {
+        return;
+    }
+    tracks()->changeTrackTitle(trackId, muse::String::fromQString(QObject::tr("Generating: %1").arg(jobId)));
+    // A silent clip so the pending render is visible on the timeline; it is
+    // replaced by the rendered audio (and deleted) when the job completes.
+    tracks()->insertSilence(au::trackedit::TrackIdList { trackId }, 0.0, 0.0, 30.0);
+    m_jobPlaceholders.insert(jobId, trackId);
+    AIStudioStatusModel::instance()->setWorkspaceStatus(
+        QObject::tr("Generating %1 — placeholder added to the timeline").arg(jobId));
+}
+
+void AIStudioController::removeJobPlaceholder(const QString& jobId)
+{
+    const auto it = m_jobPlaceholders.find(jobId);
+    if (it == m_jobPlaceholders.end()) {
+        return;
+    }
+    if (tracks()) {
+        tracks()->deleteTracks(au::trackedit::TrackIdList { it.value() });
+    }
+    m_jobPlaceholders.erase(it);
 }
 
 void AIStudioController::refreshJobs()

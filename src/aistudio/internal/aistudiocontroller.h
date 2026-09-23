@@ -8,7 +8,9 @@
 #include "context/iglobalcontext.h"
 #include "modularity/ioc.h"
 #include "songplan/songplan.h"
+#include "trackedit/itracksinteraction.h"
 
+#include <QHash>
 #include <QString>
 #include <QStringList>
 
@@ -20,6 +22,7 @@ class AIStudioController final : public muse::actions::Actionable, public muse::
 {
     muse::ContextInject<muse::actions::IActionsDispatcher> dispatcher { this };
     muse::ContextInject<au::context::IGlobalContext> globalContext { this };
+    muse::ContextInject<au::trackedit::ITracksInteraction> tracks { this };
 
 public:
     AIStudioController(const muse::modularity::ContextPtr& ctx)
@@ -70,9 +73,14 @@ private:
     void pushPlanDetail();
     void registerPlanAsset(const au::songplan::SongPlan& plan);
     void registerJobArtifacts(const QString& jobId, const QString& resultManifest);
+    void ensureJobPlaceholder(const QString& jobId);
+    void removeJobPlaceholder(const QString& jobId);
     std::shared_ptr<au::aijobs::RuntimeHostSupervisor> m_runtimeHost;
     QString m_activeWorkspace;
     au::songplan::SongPlan m_planDraft;
     bool m_planDraftLoaded = false;
+    // While a generation is running, a titled silent placeholder track stands in
+    // for the pending output and is replaced by the real audio on completion.
+    QHash<QString, au::trackedit::TrackId> m_jobPlaceholders;
 };
 }
