@@ -860,7 +860,15 @@ void AIStudioController::recordJobStatus(const au::aicore::JobStatus& status)
             QObject::tr("Provider job %1 in the AI workspace")
                 .arg(QString::fromStdString(au::aicore::toString(status.state))));
         if (status.state == au::aicore::JobState::Complete) {
-            registerJobArtifacts(QString::fromStdString(status.id.value), QString::fromStdString(status.resultManifest));
+            const QString jobId = QString::fromStdString(status.id.value);
+            registerJobArtifacts(jobId, QString::fromStdString(status.resultManifest));
+            // Generations are placed on the timeline automatically, so there is
+            // no separate "insert" step for the user to perform.
+            QString insertError;
+            bool inserted = false;
+            if (au::aijobs::JobStore::isInserted(m_activeWorkspace, jobId, &inserted, &insertError) && !inserted) {
+                insertJobOutput(jobId);
+            }
         }
         refreshJobs();
     } else {

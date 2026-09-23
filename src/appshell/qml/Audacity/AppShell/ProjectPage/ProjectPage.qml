@@ -131,6 +131,9 @@ DockPage {
 
     readonly property int verticalPanelDefaultWidth: 281
 
+    // The AI Studio panel hosts wider prompt/lyrics editors, so it is 50% wider.
+    readonly property int aiStudioPanelWidth: Math.round(verticalPanelDefaultWidth * 1.5)
+
     readonly property int horizontalPanelMinHeight: 100
     readonly property int horizontalPanelMaxHeight: 520
 
@@ -447,9 +450,9 @@ DockPage {
 
             navigationSection: root.navigationPanelSec(aiStudioPanel.location)
 
-            width: root.verticalPanelDefaultWidth
-            minimumWidth: root.verticalPanelDefaultWidth
-            maximumWidth: root.verticalPanelDefaultWidth
+            width: root.aiStudioPanelWidth
+            minimumWidth: root.aiStudioPanelWidth
+            maximumWidth: root.aiStudioPanelWidth
 
             groupName: root.verticalPanelsGroup
             location: Location.Right
