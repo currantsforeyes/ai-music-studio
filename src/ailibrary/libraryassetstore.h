@@ -18,6 +18,11 @@ public:
     static bool addProjectAsset(const QString& workspacePath, const ProjectAsset& asset,
                                 const AssetProvenance* provenance = nullptr,
                                 QString* errorMessage = nullptr);
+    // Inserts the asset, or replaces an existing asset with the same id while
+    // preserving user metadata (favourite, tags, folder, createdAt).
+    static bool upsertProjectAsset(const QString& workspacePath, const ProjectAsset& asset,
+                                   const AssetProvenance* provenance = nullptr,
+                                   QString* errorMessage = nullptr);
     static QList<ProjectAsset> projectAssets(const QString& workspacePath,
                                              QString* errorMessage = nullptr);
     static bool setProjectAssetFavourite(const QString& workspacePath, const QString& assetId, bool favourite,

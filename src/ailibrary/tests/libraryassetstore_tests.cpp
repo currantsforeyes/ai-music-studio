@@ -9,6 +9,7 @@
 #include <QJsonObject>
 #include <QTemporaryDir>
 
+#include "ailibrary/assetkind.h"
 #include "ailibrary/libraryassetstore.h"
 #include "ailibrary/globalassetcatalogue.h"
 #include "aiproject/aiworkspace.h"
@@ -278,6 +279,44 @@ TEST(LibraryAssetStoreTests, KeepsEmptyFolderAndRenamesAssignedAssets)
     ASSERT_TRUE(LibraryAssetStore::renameProjectFolder(workspacePath, "Empty ideas", "Archive", &error)) << error.toStdString();
     EXPECT_EQ(LibraryAssetStore::projectAssets(workspacePath, &error).front().folder, "Archive");
     EXPECT_EQ(LibraryAssetStore::projectFolders(workspacePath, &error), QStringList({ "Archive" }));
+}
+
+TEST(LibraryAssetStoreTests, UpsertReplacesAssetAndPreservesUserMetadata)
+{
+    QTemporaryDir projectDirectory;
+    ASSERT_TRUE(projectDirectory.isValid());
+    const QString projectPath = projectDirectory.filePath("library-test.aup4");
+    ASSERT_TRUE(aiproject::WorkspaceStore::create(projectPath));
+    const QString workspacePath = aiproject::WorkspaceStore::workspacePathForProject(projectPath);
+
+    ProjectAsset asset;
+    asset.id = "plan:demo";
+    asset.name = "demo";
+    asset.kind = "song_plan";
+    asset.origin = "generated";
+    asset.filePath = "plans/demo/r1.json";
+    asset.createdAt = "2026-09-23T00:00:00Z";
+    QString error;
+    ASSERT_TRUE(LibraryAssetStore::upsertProjectAsset(workspacePath, asset, nullptr, &error)) << error.toStdString();
+    ASSERT_TRUE(LibraryAssetStore::setProjectAssetFavourite(workspacePath, asset.id, true, &error));
+
+    asset.filePath = "plans/demo/r2.json";
+    ASSERT_TRUE(LibraryAssetStore::upsertProjectAsset(workspacePath, asset, nullptr, &error)) << error.toStdString();
+
+    const QList<ProjectAsset> restored = LibraryAssetStore::projectAssets(workspacePath, &error);
+    ASSERT_EQ(restored.size(), 1);
+    EXPECT_EQ(restored.front().filePath, "plans/demo/r2.json");
+    EXPECT_TRUE(restored.front().favourite);
+    EXPECT_EQ(restored.front().createdAt, "2026-09-23T00:00:00Z");
+}
+
+TEST(LibraryAssetStoreTests, ClassifiesAudioAndDocumentKinds)
+{
+    EXPECT_TRUE(isAudioAssetKind("upload"));
+    EXPECT_TRUE(isAudioAssetKind("stem"));
+    EXPECT_FALSE(isAudioAssetKind("song_plan"));
+    EXPECT_TRUE(isDocumentAssetKind("song_plan"));
+    EXPECT_FALSE(isDocumentAssetKind("generation"));
 }
 
 }

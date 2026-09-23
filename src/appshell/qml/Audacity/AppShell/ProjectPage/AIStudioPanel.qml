@@ -120,7 +120,7 @@ Item {
                 }
                 FlatButton {
                     text: qsTrc("aistudio", "Add to Timeline")
-                    enabled: modelData.status === "available"
+                    enabled: modelData.canAddToTimeline
                     onClicked: AIStudioStatus.addLibraryAssetToTimeline(modelData.id)
                 }
             }
@@ -667,7 +667,7 @@ Item {
 
                             FlatButton {
                                 text: qsTrc("aistudio", "Add to Timeline")
-                                enabled: libraryBrowser.selectedAsset && libraryBrowser.selectedAsset.status === "available"
+                                enabled: libraryBrowser.selectedAsset && libraryBrowser.selectedAsset.canAddToTimeline
                                 onClicked: AIStudioStatus.addLibraryAssetToTimeline(libraryBrowser.selectedAsset.id)
                             }
                         }

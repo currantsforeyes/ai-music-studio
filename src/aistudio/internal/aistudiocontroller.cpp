@@ -8,6 +8,7 @@
 #include "aicore/aicoretypes.h"
 #include "aijobs/jobstore.h"
 #include "aijobs/runtimehostsupervisor.h"
+#include "ailibrary/assetkind.h"
 #include "ailibrary/globalassetcatalogue.h"
 #include "ailibrary/libraryassetstore.h"
 #include "aiproject/aiworkspace.h"
@@ -330,6 +331,7 @@ void AIStudioController::refreshLibraryAssets()
         }
         const QString availability = !record.asset.filePath.isEmpty() && !assetFile.exists()
                                      ? QStringLiteral("missing") : record.asset.status;
+        const bool audioKind = au::ailibrary::isAudioAssetKind(record.asset.kind);
         globalRows.append(QVariantMap {
             { "id", record.asset.id }, { "name", record.asset.name }, { "kind", record.asset.kind },
             { "origin", record.asset.origin }, { "status", availability }, { "filePath", record.asset.filePath },
@@ -337,7 +339,9 @@ void AIStudioController::refreshLibraryAssets()
             { "sampleRate", record.asset.sampleRate }, { "channels", record.asset.channels },
             { "favourite", record.asset.favourite }, { "folder", record.asset.folder }, { "tags", record.asset.tags },
             { "provenanceId", record.asset.provenanceId }, { "sourceAssetIds", record.asset.sourceAssetIds },
-            { "projectPath", record.projectPath }, { "isCurrentProject", record.projectPath == projectPath }
+            { "projectPath", record.projectPath }, { "isCurrentProject", record.projectPath == projectPath },
+            { "canAddToTimeline", audioKind && availability == QStringLiteral("available") },
+            { "canReadAudioDetails", audioKind }
         });
     }
     AIStudioStatusModel::instance()->setGlobalLibraryAssets(globalRows);
@@ -350,6 +354,7 @@ void AIStudioController::refreshLibraryAssets()
         }
         const QString availability = !asset.filePath.isEmpty() && !assetFile.exists()
                                      ? QStringLiteral("missing") : asset.status;
+        const bool audioKind = au::ailibrary::isAudioAssetKind(asset.kind);
         rows.append(QVariantMap {
             { "id", asset.id }, { "name", asset.name }, { "kind", asset.kind },
             { "origin", asset.origin }, { "status", availability }, { "filePath", asset.filePath },
@@ -357,6 +362,8 @@ void AIStudioController::refreshLibraryAssets()
             { "sampleRate", asset.sampleRate }, { "channels", asset.channels }, { "favourite", asset.favourite }
             , { "folder", asset.folder }, { "tags", asset.tags }, { "provenanceId", asset.provenanceId }
             , { "sourceAssetIds", asset.sourceAssetIds }
+            , { "canAddToTimeline", audioKind && availability == QStringLiteral("available") }
+            , { "canReadAudioDetails", audioKind }
         });
     }
     AIStudioStatusModel::instance()->setLibraryAssets(rows);
@@ -990,6 +997,7 @@ void AIStudioController::createPlan(const QString& name)
         AIStudioStatusModel::instance()->setWorkspaceStatus(error);
         return;
     }
+    registerPlanAsset(plan);
     AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Created song plan %1").arg(plan.id));
     refreshPlans();
 }
@@ -1165,8 +1173,42 @@ void AIStudioController::savePlanRevision()
         return;
     }
     m_planDraft = next;
+    registerPlanAsset(next);
     pushPlanDetail();
     refreshPlans();
     AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Saved song plan %1 revision %2")
                                                         .arg(next.id).arg(next.revision));
+}
+
+void AIStudioController::registerPlanAsset(const au::songplan::SongPlan& plan)
+{
+    if (m_activeWorkspace.isEmpty()) {
+        return;
+    }
+    au::ailibrary::ProjectAsset asset;
+    asset.id = QStringLiteral("plan:%1").arg(plan.id);
+    asset.name = plan.id;
+    asset.kind = "song_plan";
+    asset.origin = "generated";
+    asset.filePath = QStringLiteral("plans/%1/r%2.json").arg(plan.id).arg(plan.revision);
+    asset.updatedAt = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
+    asset.createdAt = asset.updatedAt;
+    asset.status = "available";
+
+    au::ailibrary::AssetProvenance provenance;
+    provenance.id = QStringLiteral("plan-prov:%1:r%2").arg(plan.id).arg(plan.revision);
+    provenance.assetId = asset.id;
+    provenance.operation = "song_plan";
+    provenance.providerId = "songplan";
+    provenance.createdAt = asset.updatedAt;
+    if (!plan.sourceScoreAssetId.isEmpty()) {
+        provenance.sourceAssetIds = QStringList { plan.sourceScoreAssetId };
+    }
+
+    QString error;
+    if (!au::ailibrary::LibraryAssetStore::upsertProjectAsset(m_activeWorkspace, asset, &provenance, &error)) {
+        AIStudioStatusModel::instance()->setLibraryStatus(error);
+        return;
+    }
+    refreshLibraryAssets();
 }

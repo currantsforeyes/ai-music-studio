@@ -67,6 +67,7 @@ private:
     void removePlanNote(int index);
     void savePlanRevision();
     void pushPlanDetail();
+    void registerPlanAsset(const au::songplan::SongPlan& plan);
     std::shared_ptr<au::aijobs::RuntimeHostSupervisor> m_runtimeHost;
     QString m_activeWorkspace;
     au::songplan::SongPlan m_planDraft;

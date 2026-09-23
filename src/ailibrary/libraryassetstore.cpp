@@ -163,6 +163,81 @@ bool LibraryAssetStore::addProjectAsset(const QString& workspacePath, const Proj
     return saveManifest(manifestPath, root, errorMessage);
 }
 
+bool LibraryAssetStore::upsertProjectAsset(const QString& workspacePath, const ProjectAsset& asset,
+                                           const AssetProvenance* provenance, QString* errorMessage)
+{
+    if (asset.id.isEmpty() || asset.name.isEmpty() || asset.kind.isEmpty() || asset.origin.isEmpty()) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("An AI Library asset needs an id, name, kind, and origin");
+        }
+        return false;
+    }
+
+    const QString manifestPath = QDir(workspacePath).filePath(MANIFEST_FILE);
+    QFile manifest(manifestPath);
+    if (!manifest.open(QIODevice::ReadOnly)) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("Could not read the AI workspace manifest");
+        }
+        return false;
+    }
+    const QByteArray manifestData = manifest.readAll();
+    manifest.close();
+    const QJsonDocument document = QJsonDocument::fromJson(manifestData);
+    if (!document.isObject()) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("The AI workspace manifest is invalid");
+        }
+        return false;
+    }
+
+    QJsonObject root = document.object();
+    QJsonArray assets = root.value("assets").toArray();
+    QJsonObject incoming = assetToJson(asset);
+    bool replaced = false;
+    for (qsizetype index = 0; index < assets.size(); ++index) {
+        const QJsonObject existing = assets.at(index).toObject();
+        if (existing.value("id").toString() == asset.id) {
+            if (!incoming.value("favourite").toBool()) {
+                incoming.insert("favourite", existing.value("favourite"));
+            }
+            if (incoming.value("folder").toString().isEmpty()) {
+                incoming.insert("folder", existing.value("folder"));
+            }
+            if (incoming.value("tags").toArray().isEmpty()) {
+                incoming.insert("tags", existing.value("tags"));
+            }
+            if (!existing.value("createdAt").toString().isEmpty()) {
+                incoming.insert("createdAt", existing.value("createdAt"));
+            }
+            assets.replace(index, incoming);
+            replaced = true;
+            break;
+        }
+    }
+    if (!replaced) {
+        assets.append(incoming);
+    }
+    root.insert("assets", assets);
+
+    if (provenance) {
+        QJsonArray provenanceEntries = root.value("provenance").toArray();
+        bool exists = false;
+        for (const QJsonValue& value : provenanceEntries) {
+            if (value.toObject().value("id").toString() == provenance->id) {
+                exists = true;
+                break;
+            }
+        }
+        if (!exists) {
+            provenanceEntries.append(provenanceToJson(*provenance));
+        }
+        root.insert("provenance", provenanceEntries);
+    }
+
+    return saveManifest(manifestPath, root, errorMessage);
+}
+
 QList<ProjectAsset> LibraryAssetStore::projectAssets(const QString& workspacePath, QString* errorMessage)
 {
     QFile manifest(QDir(workspacePath).filePath(MANIFEST_FILE));

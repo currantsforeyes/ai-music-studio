@@ -3,6 +3,8 @@ declare_module(ailibrary)
 
 set(MODULE_SRC
     ${CMAKE_CURRENT_LIST_DIR}/projectasset.h
+    ${CMAKE_CURRENT_LIST_DIR}/assetkind.h
+    ${CMAKE_CURRENT_LIST_DIR}/assetkind.cpp
     ${CMAKE_CURRENT_LIST_DIR}/globalassetcatalogue.h
     ${CMAKE_CURRENT_LIST_DIR}/globalassetcatalogue.cpp
     ${CMAKE_CURRENT_LIST_DIR}/libraryassetstore.h

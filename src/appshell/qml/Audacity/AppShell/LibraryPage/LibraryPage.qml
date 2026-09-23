@@ -177,7 +177,13 @@ DockPage {
 
     function addSelectedAssetsToTimeline() {
         for (let index = 0; index < selectedAssetIds.length; ++index) {
-            AIStudioStatus.addLibraryAssetToTimeline(selectedAssetIds[index])
+            const assetId = selectedAssetIds[index]
+            const asset = currentAssets.find(function(candidate) {
+                return candidate.id === assetId
+            })
+            if (asset && asset.canAddToTimeline) {
+                AIStudioStatus.addLibraryAssetToTimeline(assetId)
+            }
         }
     }
 
@@ -207,6 +213,36 @@ DockPage {
                 return candidate.id === assetId
             })
             if (!asset || !asset.favourite) {
+                return false
+            }
+        }
+        return true
+    }
+
+    function selectedAssetsCanAddToTimeline() {
+        if (selectedAssetIds.length === 0) {
+            return false
+        }
+        for (let selectedIndex = 0; selectedIndex < selectedAssetIds.length; ++selectedIndex) {
+            const asset = currentAssets.find(function(candidate) {
+                return candidate.id === selectedAssetIds[selectedIndex]
+            })
+            if (!asset || !asset.canAddToTimeline) {
+                return false
+            }
+        }
+        return true
+    }
+
+    function selectedAssetsCanReadAudioDetails() {
+        if (selectedAssetIds.length === 0) {
+            return false
+        }
+        for (let selectedIndex = 0; selectedIndex < selectedAssetIds.length; ++selectedIndex) {
+            const asset = currentAssets.find(function(candidate) {
+                return candidate.id === selectedAssetIds[selectedIndex]
+            })
+            if (!asset || !asset.canReadAudioDetails) {
                 return false
             }
         }
@@ -581,7 +617,7 @@ DockPage {
                             text: root.selectedAssetIds.length > 1
                                   ? qsTrc("aistudio", "Read details for %1").arg(root.selectedAssetIds.length)
                                   : qsTrc("aistudio", "Read WAV details")
-                            enabled: root.isProjectScope && root.selectedAssetIds.length > 0
+                            enabled: root.isProjectScope && root.selectedAssetsCanReadAudioDetails()
                             onClicked: AIStudioStatus.readLibraryAssetsAudioDetails(root.selectedAssetIds)
                         }
                     }
@@ -677,7 +713,7 @@ DockPage {
                             text: root.selectedAssetIds.length > 1
                                   ? qsTrc("aistudio", "Add %1 to Timeline").arg(root.selectedAssetIds.length)
                                   : qsTrc("aistudio", "Add to Timeline")
-                            enabled: root.selectedAssetIds.length > 0
+                            enabled: root.selectedAssetsCanAddToTimeline()
                             onClicked: root.addSelectedAssetsToTimeline()
                         }
                     }
@@ -936,7 +972,7 @@ DockPage {
                         Layout.fillWidth: true
                         text: qsTrc("aistudio", "Add to Timeline")
                         icon: IconCode.PLUS
-                        enabled: root.isProjectScope
+                        enabled: root.isProjectScope && root.contextAsset && root.contextAsset.canAddToTimeline
                         onClicked: {
                             assetContextMenu.visible = false
                             AIStudioStatus.addLibraryAssetToTimeline(root.contextAssetId)
