@@ -27,12 +27,12 @@ if (OS_IS_WIN)
             "$ENV{ProgramFiles}/Microsoft Visual Studio/2022/Professional/MSBuild/Current/Bin/amd64"
             "$ENV{ProgramFiles}/Microsoft Visual Studio/2022/Enterprise/MSBuild/Current/Bin/amd64"
             "$ENV{ProgramFiles}/Microsoft Visual Studio/2022/BuildTools/MSBuild/Current/Bin/amd64"
-            "$ENV{ProgramFiles(x86)}/Microsoft Visual Studio/2022/BuildTools/MSBuild/Current/Bin/amd64"
+            "$ENV{ProgramFiles\(x86\)}/Microsoft Visual Studio/2022/BuildTools/MSBuild/Current/Bin/amd64"
     )
     if (NOT QM_VAMP_MSBUILD)
         # vswhere is the supported way to find any installed MSBuild regardless
         # of edition, install location, or preview channel.
-        set(_vswhere "$ENV{ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe")
+        set(_vswhere "$ENV{ProgramFiles\(x86\)}/Microsoft Visual Studio/Installer/vswhere.exe")
         if (EXISTS "${_vswhere}")
             execute_process(
                 COMMAND "${_vswhere}" -latest -products * -requires Microsoft.Component.MSBuild
