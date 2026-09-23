@@ -93,6 +93,12 @@ RuntimeHostSupervisor::RuntimeHostSupervisor(QObject* parent)
                 status.progress = response.value("progress").toDouble();
                 status.message = response.value("message").toString().toStdString();
                 emitJobStatus(status);
+            } else if (!response.value("ok").toBool() && code == "failed") {
+                const QString jobId = response.value("jobId").toString();
+                m_activeJobId.clear();
+                emit testJobFailed(jobId);
+                notifyJobStatus(au::aicore::JobState::Failed, jobId);
+                setStatus(tr("Provider job failed"));
             } else {
                 setStatus(tr("Runtime host request failed"));
             }
@@ -127,8 +133,24 @@ void RuntimeHostSupervisor::start()
     }
     QDir().mkpath(m_workspace);
     m_token = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    QStringList arguments { "--workspace", m_workspace, "--token", m_token };
+    // Native YuE2 provider configuration is supplied through the environment so
+    // the editor process does not need to know model paths; the provider stays
+    // optional and the runtime host starts without it when unset.
+    const QString yue2Cli = qEnvironmentVariable("AI_YUE2_CLI");
+    if (!yue2Cli.isEmpty()) {
+        arguments << "--yue2-cli" << yue2Cli;
+    }
+    const QString yue2Model = qEnvironmentVariable("AI_YUE2_MODEL");
+    if (!yue2Model.isEmpty()) {
+        arguments << "--yue2-model" << yue2Model;
+    }
+    const QString yue2Threads = qEnvironmentVariable("AI_YUE2_THREADS");
+    if (!yue2Threads.isEmpty()) {
+        arguments << "--yue2-threads" << yue2Threads;
+    }
     setStatus(tr("Starting local runtime host"));
-    m_process->start(executable, { "--workspace", m_workspace, "--token", m_token });
+    m_process->start(executable, arguments);
     m_startupTimer->start(5000);
 }
 

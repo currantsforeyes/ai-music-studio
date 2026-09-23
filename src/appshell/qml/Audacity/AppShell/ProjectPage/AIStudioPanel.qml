@@ -452,6 +452,44 @@ Item {
             }
         }
 
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 1
+            color: ui.theme.strokeColor
+        }
+
+        StyledTextLabel {
+            Layout.fillWidth: true
+            text: qsTrc("aistudio", "Create")
+            font: ui.theme.bodyBoldFont
+        }
+
+        StyledTextLabel {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            text: qsTrc("aistudio", "Set AI_YUE2_CLI and AI_YUE2_MODEL to enable the native YuE2 provider.")
+        }
+
+        TextArea {
+            id: lyricsField
+            Layout.fillWidth: true
+            Layout.preferredHeight: 80
+            wrapMode: TextArea.Wrap
+            placeholderText: qsTrc("aistudio", "[Verse]\n...\n[Chorus]\n...")
+        }
+
+        TextField {
+            id: styleField
+            Layout.fillWidth: true
+            placeholderText: qsTrc("aistudio", "Style")
+        }
+
+        FlatButton {
+            text: qsTrc("aistudio", "Generate with YuE2")
+            enabled: lyricsField.text.trim().length > 0
+            onClicked: AIStudioStatus.runYue2Job(lyricsField.text, styleField.text)
+        }
+
         StyledTextLabel {
             Layout.fillWidth: true
             wrapMode: Text.Wrap

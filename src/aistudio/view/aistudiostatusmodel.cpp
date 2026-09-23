@@ -312,6 +312,13 @@ void AIStudioStatusModel::insertJobOutput(const QString& jobId)
     }
 }
 
+void AIStudioStatusModel::runYue2Job(const QString& lyrics, const QString& style)
+{
+    if (!lyrics.trimmed().isEmpty()) {
+        emit yue2JobRequested(lyrics, style);
+    }
+}
+
 void AIStudioStatusModel::refreshPlans()
 {
     emit plansRefreshRequested();

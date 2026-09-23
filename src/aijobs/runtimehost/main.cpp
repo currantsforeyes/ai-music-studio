@@ -7,18 +7,25 @@
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPointer>
+#include <QProcess>
+#include <QProcessEnvironment>
+#include <QStringList>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTextStream>
 #include <QTimer>
+#include <QUuid>
 
 #include <cmath>
 #include <cstring>
 
 #include <algorithm>
+
+#include "aijobs/yue2provider.h"
 
 namespace {
 constexpr int ProtocolVersion = 1;
@@ -30,6 +37,29 @@ QByteArray response(bool ok, const QString& code, const QJsonObject& values = {}
     payload.insert("code", code);
     payload.insert("protocolVersion", ProtocolVersion);
     return QJsonDocument(payload).toJson(QJsonDocument::Compact) + '\n';
+}
+
+// CUDA runtime DLLs (cudart/cublas/cufft) are loaded dynamically by the
+// audio.cpp CLI and live under the CUDA Toolkit, not next to the executable.
+QStringList cudaRuntimeDirectories()
+{
+    QStringList result;
+    const QString cudaPath = qEnvironmentVariable("CUDA_PATH");
+    if (!cudaPath.isEmpty()) {
+        result << QDir(cudaPath).filePath("bin/x64") << QDir(cudaPath).filePath("bin");
+    }
+    for (const char* variable : { "ProgramFiles", "ProgramFiles(x86)" }) {
+        const QString root = qEnvironmentVariable(variable);
+        if (root.isEmpty()) {
+            continue;
+        }
+        const QDir cuda(root + "/NVIDIA GPU Computing Toolkit/CUDA");
+        const QStringList versions = cuda.entryList({ "v*" }, QDir::Dirs, QDir::Name | QDir::Reversed);
+        for (const QString& version : versions) {
+            result << cuda.filePath(version + "/bin/x64") << cuda.filePath(version + "/bin");
+        }
+    }
+    return result;
 }
 
 bool writeDeterministicWav(const QString& path)
@@ -69,13 +99,14 @@ bool writeDeterministicWav(const QString& path)
 class RuntimeHost final : public QObject
 {
 public:
-    RuntimeHost(QString token, QString workspace)
-        : m_token(std::move(token)), m_workspace(std::move(workspace))
+    RuntimeHost(QString token, QString workspace, QString yue2Cli, QString yue2Model, int yue2Threads)
+        : m_token(std::move(token)), m_workspace(std::move(workspace)),
+          m_yue2Cli(std::move(yue2Cli)), m_yue2Model(std::move(yue2Model)), m_yue2Threads(yue2Threads)
     {
         m_jobTimer.setSingleShot(true);
         connect(&m_jobTimer, &QTimer::timeout, this, [this] { finishTestJob(); });
         m_progressTimer.setInterval(250);
-        connect(&m_progressTimer, &QTimer::timeout, this, [this] { sendProgress(); });
+        connect(&m_progressTimer, &QTimer::timeout, this, [this] { sendTestProgress(); });
         connect(&m_server, &QTcpServer::newConnection, this, [this] {
             while (auto* socket = m_server.nextPendingConnection()) {
                 connect(socket, &QTcpSocket::readyRead, socket, [this, socket] {
@@ -94,18 +125,13 @@ public:
                         if (action == "health") {
                             socket->write(response(true, "healthy", { { "state", "healthy" } }));
                         } else if (action == "submit-job") {
-                            const QString providerId = request.value("providerId").toString();
-                            if (providerId == "test-provider") {
-                                startTestJob(socket);
-                            } else {
-                                socket->write(response(false, "unknown-provider", { { "providerId", providerId } }));
-                            }
+                            handleSubmitJob(socket, request);
                         } else if (action == "test-job") {
                             startTestJob(socket);
                         } else if (action == "test-worker-failure") {
                             startFailureTest(socket);
                         } else if (action == "cancel") {
-                            cancelTestJob(socket, request.value("jobId").toString());
+                            cancelJob(socket, request.value("jobId").toString());
                         } else {
                             socket->write(response(false, "unknown-action"));
                         }
@@ -123,6 +149,33 @@ public:
     quint16 port() const { return m_server.serverPort(); }
 
 private:
+    void handleSubmitJob(QTcpSocket* socket, const QJsonObject& request)
+    {
+        const QString providerId = request.value("providerId").toString();
+        if (providerId == "test-provider") {
+            startTestJob(socket);
+        } else if (providerId == "yue2-native") {
+            startYue2Job(socket, request);
+        } else {
+            socket->write(response(false, "unknown-provider", { { "providerId", providerId } }));
+        }
+    }
+
+    void sendProgressValue(const QString& jobId, double progress, const QString& message)
+    {
+        if (!m_activeJobSocket) {
+            return;
+        }
+        m_activeJobSocket->write(response(true, "progress", {
+            { "jobId", jobId },
+            { "state", "running" },
+            { "progress", progress },
+            { "message", message }
+        }));
+    }
+
+    // --- test provider -----------------------------------------------------
+
     void startTestJob(QTcpSocket* socket)
     {
         if (!m_activeJobId.isEmpty()) {
@@ -131,23 +184,21 @@ private:
         }
         m_activeJobId = "test-provider-job";
         m_activeJobSocket = socket;
+        m_cancelled = false;
         socket->write(response(true, "accepted", { { "jobId", m_activeJobId }, { "state", "running" } }));
         m_progressStep = 0;
         m_jobTimer.start(1500);
         m_progressTimer.start();
     }
 
-    void cancelTestJob(QTcpSocket* socket, const QString& jobId)
+    void sendTestProgress()
     {
-        if (m_activeJobId.isEmpty() || jobId != m_activeJobId) {
-            socket->write(response(false, "job-not-running", { { "jobId", jobId } }));
+        if (m_activeJobId.isEmpty()) {
             return;
         }
-        m_jobTimer.stop();
-        m_progressTimer.stop();
-        m_activeJobId.clear();
-        m_activeJobSocket = nullptr;
-        socket->write(response(true, "cancelled", { { "jobId", jobId }, { "state", "cancelled" } }));
+        m_progressStep = std::min(m_progressStep + 1, 6);
+        const double progress = std::min(0.9, m_progressStep * 0.15);
+        sendProgressValue(m_activeJobId, progress, QString("Rendering %1%").arg(int(progress * 100.0)));
     }
 
     void startFailureTest(QTcpSocket* socket)
@@ -160,21 +211,6 @@ private:
         m_activeJobSocket = socket;
         socket->write(response(true, "accepted", { { "jobId", m_activeJobId }, { "state", "running" } }));
         QTimer::singleShot(500, this, [] { QCoreApplication::exit(70); });
-    }
-
-    void sendProgress()
-    {
-        if (m_activeJobId.isEmpty() || !m_activeJobSocket) {
-            return;
-        }
-        m_progressStep = std::min(m_progressStep + 1, 6);
-        const double progress = std::min(0.9, m_progressStep * 0.15);
-        m_activeJobSocket->write(response(true, "progress", {
-            { "jobId", m_activeJobId },
-            { "state", "running" },
-            { "progress", progress },
-            { "message", QString("Rendering %1%").arg(int(progress * 100.0)) }
-        }));
     }
 
     void finishTestJob()
@@ -221,20 +257,197 @@ private:
         }
     }
 
+    // --- native YuE2 (audio.cpp) provider ----------------------------------
+
+    QString providerEnvironmentPath() const
+    {
+        QString path = QProcessEnvironment::systemEnvironment().value("PATH");
+        for (const QString& directory : cudaRuntimeDirectories()) {
+            if (QDir(directory).exists()) {
+                path = directory + QDir::listSeparator() + path;
+            }
+        }
+        return path;
+    }
+
+    void startYue2Job(QTcpSocket* socket, const QJsonObject& request)
+    {
+        if (!m_activeJobId.isEmpty()) {
+            socket->write(response(false, "job-already-running", { { "jobId", m_activeJobId } }));
+            return;
+        }
+        Yue2JobParameters parameters;
+        QString error;
+        if (!au::aijobs::parseYue2Parameters(request.value("parameters").toString().toUtf8(),
+                                             m_yue2Cli, m_yue2Model, m_yue2Threads, &parameters, &error)) {
+            socket->write(response(false, "invalid-parameters", { { "message", error } }));
+            return;
+        }
+
+        const QString jobId = QStringLiteral("yue2-") + QUuid::createUuid().toString(QUuid::WithoutBraces);
+        const QString jobDirectory = QDir(m_workspace).filePath("jobs/" + jobId);
+        if (!QDir().mkpath(jobDirectory)) {
+            socket->write(response(false, "workspace-create-failed", { { "jobId", jobId } }));
+            return;
+        }
+        const QString outputPath = QDir(jobDirectory).filePath("output.wav");
+
+        m_activeJobId = jobId;
+        m_activeJobSocket = socket;
+        m_providerOutputPath = outputPath;
+        m_providerLog.clear();
+        m_cancelled = false;
+        socket->write(response(true, "accepted", { { "jobId", jobId }, { "state", "running" } }));
+        sendProgressValue(jobId, 0.05, QStringLiteral("Starting YuE2"));
+
+        m_providerProcess = new QProcess(this);
+        m_providerProcess->setWorkingDirectory(jobDirectory);
+        QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+        environment.insert("PATH", providerEnvironmentPath());
+        m_providerProcess->setProcessEnvironment(environment);
+        connect(m_providerProcess, &QProcess::readyReadStandardOutput, this, [this] { drainYue2Stdout(); });
+        connect(m_providerProcess, &QProcess::readyReadStandardError, this, [this] { drainYue2Stderr(); });
+        connect(m_providerProcess, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
+                [this](int exitCode, QProcess::ExitStatus) { finishYue2Job(exitCode); });
+        m_providerProcess->start(parameters.cliPath, au::aijobs::buildYue2Arguments(parameters, outputPath));
+        if (!m_providerProcess->waitForStarted(5000)) {
+            socket->write(response(false, "provider-start-failed", { { "jobId", jobId } }));
+            m_providerProcess->deleteLater();
+            m_providerProcess = nullptr;
+            m_activeJobId.clear();
+            m_activeJobSocket = nullptr;
+            m_providerOutputPath.clear();
+        }
+    }
+
+    void drainYue2Stdout()
+    {
+        if (!m_providerProcess) {
+            return;
+        }
+        while (m_providerProcess->canReadLine()) {
+            const QString line = QString::fromUtf8(m_providerProcess->readLine()).trimmed();
+            if (line.isEmpty() || m_activeJobId.isEmpty()) {
+                continue;
+            }
+            const au::aijobs::Yue2Progress progress = au::aijobs::yue2ProgressFromLogLine(line);
+            if (progress.recognized) {
+                sendProgressValue(m_activeJobId, progress.progress, progress.message);
+            }
+        }
+    }
+
+    void drainYue2Stderr()
+    {
+        if (!m_providerProcess) {
+            return;
+        }
+        const QString text = QString::fromUtf8(m_providerProcess->readAllStandardError());
+        for (const QString& line : text.split('\n', Qt::SkipEmptyParts)) {
+            m_providerLog.append(line.trimmed());
+        }
+        constexpr int maximumLines = 20;
+        while (m_providerLog.size() > maximumLines) {
+            m_providerLog.removeFirst();
+        }
+    }
+
+    void finishYue2Job(int exitCode)
+    {
+        drainYue2Stdout();
+        drainYue2Stderr();
+        QProcess* process = m_providerProcess;
+        m_providerProcess = nullptr;
+        if (process) {
+            process->deleteLater();
+        }
+
+        const QString jobId = m_activeJobId;
+        QTcpSocket* socket = m_activeJobSocket;
+        const QString outputPath = m_providerOutputPath;
+        const bool cancelled = m_cancelled;
+        m_activeJobId.clear();
+        m_activeJobSocket = nullptr;
+        m_providerOutputPath.clear();
+        m_cancelled = false;
+        if (jobId.isEmpty() || cancelled) {
+            return;
+        }
+
+        const QString jobDirectory = QDir(m_workspace).filePath("jobs/" + jobId);
+        if (exitCode == 0 && QFileInfo::exists(outputPath)) {
+            const QJsonObject manifest {
+                { "protocolVersion", ProtocolVersion },
+                { "jobId", jobId },
+                { "providerId", "yue2-native" },
+                { "state", "complete" },
+                { "asset", "output.wav" }
+            };
+            QFile manifestFile(QDir(jobDirectory).filePath("result.json"));
+            if (!manifestFile.open(QIODevice::WriteOnly | QIODevice::Truncate)
+                || manifestFile.write(QJsonDocument(manifest).toJson(QJsonDocument::Compact)) < 1) {
+                if (socket) {
+                    socket->write(response(false, "manifest-write-failed", { { "jobId", jobId } }));
+                }
+                return;
+            }
+            if (socket) {
+                socket->write(response(true, "complete", { { "jobId", jobId }, { "resultManifest", "jobs/" + jobId + "/result.json" } }));
+            }
+        } else if (socket) {
+            socket->write(response(false, "failed", {
+                { "jobId", jobId }, { "exitCode", exitCode }, { "log", m_providerLog.join('\n') }
+            }));
+        }
+    }
+
+    // --- shared cancellation ----------------------------------------------
+
+    void cancelJob(QTcpSocket* socket, const QString& jobId)
+    {
+        if (m_activeJobId.isEmpty() || jobId != m_activeJobId) {
+            socket->write(response(false, "job-not-running", { { "jobId", jobId } }));
+            return;
+        }
+        const QString activeJobId = m_activeJobId;
+        if (m_providerProcess) {
+            QProcess* process = m_providerProcess;
+            m_providerProcess = nullptr;
+            process->disconnect(this);
+            process->kill();
+            process->deleteLater();
+        } else {
+            m_jobTimer.stop();
+            m_progressTimer.stop();
+        }
+        m_cancelled = true;
+        m_activeJobId.clear();
+        m_activeJobSocket = nullptr;
+        m_providerOutputPath.clear();
+        socket->write(response(true, "cancelled", { { "jobId", activeJobId }, { "state", "cancelled" } }));
+    }
+
     QString m_token;
     QString m_workspace;
+    QString m_yue2Cli;
+    QString m_yue2Model;
+    int m_yue2Threads = 8;
     QTcpServer m_server;
     QTimer m_jobTimer;
     QTimer m_progressTimer;
     int m_progressStep = 0;
     QString m_activeJobId;
     QPointer<QTcpSocket> m_activeJobSocket;
+    QProcess* m_providerProcess = nullptr;
+    QString m_providerOutputPath;
+    QStringList m_providerLog;
+    bool m_cancelled = false;
 };
 
 int selfTest(const QString& workspace)
 {
     const QString token = "self-test-token";
-    RuntimeHost host(token, workspace);
+    RuntimeHost host(token, workspace, {}, {}, 8);
     if (!host.listen()) {
         return 10;
     }
@@ -281,6 +494,9 @@ int main(int argc, char* argv[])
     QCommandLineParser parser;
     parser.addOption({ "workspace", "Workspace for job output.", "path" });
     parser.addOption({ "token", "Required session token.", "token" });
+    parser.addOption({ "yue2-cli", "Path to the native YuE2 (audio.cpp) audiocpp_cli executable.", "path" });
+    parser.addOption({ "yue2-model", "Directory holding the YuE2 GGUF model and sidecars.", "path" });
+    parser.addOption({ "yue2-threads", "Worker threads for the native YuE2 provider.", "n", "8" });
     parser.addOption(QCommandLineOption("self-test", "Run authenticated loopback and test-provider verification."));
     parser.process(application);
 
@@ -295,7 +511,8 @@ int main(int argc, char* argv[])
     if (token.isEmpty()) {
         return 3;
     }
-    RuntimeHost host(token, workspace);
+    RuntimeHost host(token, workspace, parser.value("yue2-cli"), parser.value("yue2-model"),
+                     parser.value("yue2-threads").toInt());
     if (!host.listen()) {
         return 4;
     }

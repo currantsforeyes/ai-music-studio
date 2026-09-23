@@ -55,6 +55,7 @@ private:
     void cancelJob(const QString& jobId);
     void retryJob(const QString& jobId);
     void insertJobOutput(const QString& jobId);
+    void submitYue2Job(const QString& lyrics, const QString& style);
     void refreshPlans();
     void createPlan(const QString& name);
     void loadPlan(const QString& planId);

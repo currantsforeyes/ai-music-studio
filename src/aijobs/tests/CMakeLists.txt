@@ -1,6 +1,7 @@
 set(AIJOBS_TEST_SRC
     ${CMAKE_CURRENT_LIST_DIR}/main.cpp
     ${CMAKE_CURRENT_LIST_DIR}/jobstore_tests.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/yue2provider_tests.cpp
 )
 
 add_executable(aijobs_tests ${AIJOBS_TEST_SRC})

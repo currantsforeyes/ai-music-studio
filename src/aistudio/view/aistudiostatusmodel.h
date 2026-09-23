@@ -69,6 +69,7 @@ public:
     Q_INVOKABLE void cancelJob(const QString& jobId);
     Q_INVOKABLE void retryJob(const QString& jobId);
     Q_INVOKABLE void insertJobOutput(const QString& jobId);
+    Q_INVOKABLE void runYue2Job(const QString& lyrics, const QString& style);
     Q_INVOKABLE void refreshPlans();
     Q_INVOKABLE void createPlan(const QString& name);
     Q_INVOKABLE void loadPlan(const QString& planId);
@@ -114,6 +115,7 @@ signals:
     void jobCancelRequested(const QString& jobId);
     void jobRetryRequested(const QString& jobId);
     void jobInsertRequested(const QString& jobId);
+    void yue2JobRequested(const QString& lyrics, const QString& style);
     void plansChanged();
     void plansRefreshRequested();
     void planCreateRequested(const QString& name);

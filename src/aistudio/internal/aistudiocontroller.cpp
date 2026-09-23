@@ -19,6 +19,8 @@
 #include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QtEndian>
 #include <QCryptographicHash>
 #include <QFile>
@@ -168,6 +170,10 @@ void AIStudioController::init()
                      m_runtimeHost.get(), [this](const QString& jobId) { retryJob(jobId); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::jobInsertRequested,
                      m_runtimeHost.get(), [this](const QString& jobId) { insertJobOutput(jobId); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::yue2JobRequested,
+                     m_runtimeHost.get(), [this](const QString& lyrics, const QString& style) {
+        submitYue2Job(lyrics, style);
+    });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::plansRefreshRequested,
                      m_runtimeHost.get(), [this] { refreshPlans(); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::planCreateRequested,
@@ -947,6 +953,28 @@ void AIStudioController::insertJobOutput(const QString& jobId)
     } else {
         AIStudioStatusModel::instance()->setWorkspaceStatus(error);
     }
+}
+
+void AIStudioController::submitYue2Job(const QString& lyrics, const QString& style)
+{
+    if (m_activeWorkspace.isEmpty()) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Enable the project AI workspace before generating a song"));
+        return;
+    }
+    QJsonObject parameters { { "text", lyrics } };
+    if (!style.trimmed().isEmpty()) {
+        parameters.insert("style", style);
+    }
+    const au::aicore::JobRequest request {
+        "yue2-native",
+        QJsonDocument(parameters).toJson(QJsonDocument::Compact).toStdString()
+    };
+    QString error;
+    if (!m_runtimeHost->submit(request, &error)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
+        return;
+    }
+    AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Submitted YuE2 generation job"));
 }
 
 void AIStudioController::refreshPlans()

@@ -5,6 +5,8 @@ set(MODULE_SRC
     ${CMAKE_CURRENT_LIST_DIR}/iruntimeclient.h
     ${CMAKE_CURRENT_LIST_DIR}/jobstore.h
     ${CMAKE_CURRENT_LIST_DIR}/jobstore.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/yue2provider.h
+    ${CMAKE_CURRENT_LIST_DIR}/yue2provider.cpp
     ${CMAKE_CURRENT_LIST_DIR}/fakeruntimeclient.h
     ${CMAKE_CURRENT_LIST_DIR}/fakeruntimeclient.cpp
     ${CMAKE_CURRENT_LIST_DIR}/runtimehostsupervisor.h
