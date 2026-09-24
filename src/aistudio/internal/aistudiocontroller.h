@@ -10,6 +10,7 @@
 #include "modularity/ioc.h"
 #include "songplan/songplan.h"
 #include "trackedit/iselectioncontroller.h"
+#include "trackedit/itrackeditinteraction.h"
 #include "trackedit/itracksinteraction.h"
 
 #include <QHash>
@@ -25,6 +26,7 @@ class AIStudioController final : public muse::actions::Actionable, public muse::
     muse::ContextInject<muse::actions::IActionsDispatcher> dispatcher { this };
     muse::ContextInject<au::context::IGlobalContext> globalContext { this };
     muse::ContextInject<au::trackedit::ITracksInteraction> tracks { this };
+    muse::ContextInject<au::trackedit::ITrackeditInteraction> trackedit { this };
     muse::ContextInject<au::trackedit::ISelectionController> selectionController { this };
 
 public:
@@ -62,8 +64,10 @@ private:
     void retryJob(const QString& jobId);
     void insertJobOutput(const QString& jobId);
     void submitYue2Job(const QString& lyrics, const QString& style, const QString& seed, const QString& title);
-    void reusePromptForTrack(au::trackedit::TrackId trackId);
-    void loadPlanForTrack(au::trackedit::TrackId trackId);
+    void reusePromptForTrack(const au::trackedit::ClipKey& clipKey);
+    void loadPlanForClip(const au::trackedit::ClipKey& clipKey);
+    void loadPlanForJob(const QString& jobId);
+    QString jobIdForClip(const au::trackedit::ClipKey& clipKey) const;
     void onClipSelectionChanged();
     void applyModelSettings();
     void setModelCliPath(const QString& path);
