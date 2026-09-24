@@ -68,6 +68,7 @@ private:
     void importPromptFile(const QString& path);
     void exportPromptFile(const QString& path, const QString& style, const QString& lyrics, const QString& title,
                           const QString& seed, const QString& cot, const QString& steps, const QString& guidance);
+    void importPendingResults();
     void reusePromptForTrack(const au::trackedit::ClipKey& clipKey);
     void regenerateFromPlan();
     void loadPlanForClip(const au::trackedit::ClipKey& clipKey);

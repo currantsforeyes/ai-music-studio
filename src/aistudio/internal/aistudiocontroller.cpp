@@ -319,6 +319,7 @@ void AIStudioController::refreshWorkspaceStatus()
         refreshLibraryAssets();
         refreshJobs();
         refreshPlans();
+        importPendingResults();
     } else {
         m_activeWorkspace.clear();
         AIStudioStatusModel::instance()->setLibraryAssets({});
@@ -1404,6 +1405,27 @@ void AIStudioController::regenerateFromPlan()
     AIStudioStatusModel::instance()->updateCurrentSeed(QString::number(seedValue));
     AIStudioStatusModel::instance()->setWorkspaceStatus(
         QObject::tr("Regenerating from the edited song plan (seed %1)").arg(seedValue));
+}
+
+void AIStudioController::importPendingResults()
+{
+    if (m_activeWorkspace.isEmpty()) {
+        return;
+    }
+    QString error;
+    const QList<au::aicore::JobStatus> jobs = au::aijobs::JobStore::jobs(m_activeWorkspace, &error);
+    if (!error.isEmpty()) {
+        return;
+    }
+    // A completed job whose output is present but was never placed on the
+    // timeline (e.g. the app closed before inserting) is imported now.
+    for (const au::aicore::JobStatus& job : jobs) {
+        const QString jobId = QString::fromStdString(job.id.value);
+        QString reason;
+        if (!au::aijobs::JobStore::resultAssetPath(m_activeWorkspace, jobId, &reason).isEmpty()) {
+            insertJobOutput(jobId);
+        }
+    }
 }
 
 void AIStudioController::importPromptFile(const QString& path)
