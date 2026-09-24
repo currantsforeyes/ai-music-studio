@@ -374,10 +374,36 @@ Item {
     Popup {
         id: songPlanPopup
 
+        property int planTab: 0
+        readonly property real planTotal: {
+            const sections = AIStudioStatus.planDetail.loaded === true ? AIStudioStatus.planDetail.sections : []
+            let total = 0
+            for (let index = 0; index < sections.length; ++index) {
+                total = Math.max(total, sections[index].endSeconds)
+            }
+            return total > 0 ? total : 1
+        }
+        readonly property int melodyLow: {
+            const melody = AIStudioStatus.planDetail.loaded === true ? AIStudioStatus.planDetail.melody : []
+            let low = 127
+            for (let index = 0; index < melody.length; ++index) {
+                low = Math.min(low, melody[index].midiPitch)
+            }
+            return low === 127 ? 48 : low
+        }
+        readonly property int melodyHigh: {
+            const melody = AIStudioStatus.planDetail.loaded === true ? AIStudioStatus.planDetail.melody : []
+            let high = 0
+            for (let index = 0; index < melody.length; ++index) {
+                high = Math.max(high, melody[index].midiPitch)
+            }
+            return high === 0 ? 72 : high
+        }
+
         parent: Overlay.overlay
         anchors.centerIn: parent
-        width: Math.min(920, parent ? parent.width - 80 : 920)
-        height: Math.min(640, parent ? parent.height - 80 : 640)
+        width: Math.min(1240, parent ? parent.width - 60 : 1240)
+        height: Math.min(860, parent ? parent.height - 60 : 860)
         modal: true
         focus: true
         padding: 0
@@ -460,10 +486,99 @@ Item {
                         }
                     }
 
-                    StyledTextLabel { Layout.fillWidth: true; text: qsTrc("aistudio", "Sections"); font: ui.theme.bodyBoldFont }
+                    StyledTextLabel { Layout.fillWidth: true; text: qsTrc("aistudio", "Timeline"); font: ui.theme.bodyBoldFont }
+
+                    Item {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 60
+                        clip: true
+
+                        Repeater {
+                            model: AIStudioStatus.planDetail.loaded === true ? AIStudioStatus.planDetail.sections : []
+                            delegate: Rectangle {
+                                x: (modelData.startSeconds / songPlanPopup.planTotal) * parent.width
+                                width: Math.max(3, ((modelData.endSeconds - modelData.startSeconds) / songPlanPopup.planTotal) * parent.width - 2)
+                                y: 2
+                                height: parent.height - 4
+                                radius: 3
+                                color: ui.theme.accentColor
+                                opacity: index % 2 === 0 ? 0.85 : 0.55
+
+                                StyledTextLabel {
+                                    anchors.fill: parent
+                                    anchors.margins: 5
+                                    elide: Text.ElideRight
+                                    text: modelData.name
+                                }
+                            }
+                        }
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 24
+                        clip: true
+
+                        Repeater {
+                            model: AIStudioStatus.planDetail.loaded === true ? AIStudioStatus.planDetail.chords : []
+                            delegate: StyledTextLabel {
+                                x: Math.max(0, Math.min(parent.width - width, (modelData.startSeconds / songPlanPopup.planTotal) * parent.width))
+                                text: modelData.symbol
+                            }
+                        }
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 90
+                        clip: true
+
+                        Repeater {
+                            model: AIStudioStatus.planDetail.loaded === true ? AIStudioStatus.planDetail.melody : []
+                            delegate: Rectangle {
+                                readonly property int span: Math.max(1, songPlanPopup.melodyHigh - songPlanPopup.melodyLow)
+                                x: (modelData.startSeconds / songPlanPopup.planTotal) * parent.width
+                                width: Math.max(2, (modelData.durationSeconds / songPlanPopup.planTotal) * parent.width)
+                                height: 3
+                                y: (1 - (modelData.midiPitch - songPlanPopup.melodyLow) / span) * (parent.height - height)
+                                color: ui.theme.accentColor
+                                opacity: 0.85
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+
+                        FlatButton {
+                            text: qsTrc("aistudio", "Sections (%1)").arg(AIStudioStatus.planDetail.loaded === true ? AIStudioStatus.planDetail.sections.length : 0)
+                            enabled: songPlanPopup.planTab !== 0
+                            onClicked: songPlanPopup.planTab = 0
+                        }
+                        FlatButton {
+                            text: qsTrc("aistudio", "Chords (%1)").arg(AIStudioStatus.planDetail.loaded === true ? AIStudioStatus.planDetail.chords.length : 0)
+                            enabled: songPlanPopup.planTab !== 1
+                            onClicked: songPlanPopup.planTab = 1
+                        }
+                        FlatButton {
+                            text: qsTrc("aistudio", "Melody (%1)").arg(AIStudioStatus.planDetail.loaded === true ? AIStudioStatus.planDetail.melody.length : 0)
+                            enabled: songPlanPopup.planTab !== 2
+                            onClicked: songPlanPopup.planTab = 2
+                        }
+                        Item { Layout.fillWidth: true }
+                    }
+
+                    StyledTextLabel {
+                        Layout.fillWidth: true
+                        visible: songPlanPopup.planTab === 0
+                        text: qsTrc("aistudio", "Sections")
+                        font: ui.theme.bodyBoldFont
+                    }
 
                     Column {
                         Layout.fillWidth: true
+                        visible: songPlanPopup.planTab === 0
                         spacing: 2
 
                         Repeater {
@@ -482,6 +597,7 @@ Item {
 
                     RowLayout {
                         Layout.fillWidth: true
+                        visible: songPlanPopup.planTab === 0
                         spacing: 6
                         TextField { id: sectionNameField; Layout.preferredWidth: 90; placeholderText: qsTrc("aistudio", "Name") }
                         TextField { id: sectionStartField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "Start") }
@@ -492,10 +608,16 @@ Item {
                         }
                     }
 
-                    StyledTextLabel { Layout.fillWidth: true; text: qsTrc("aistudio", "Chords"); font: ui.theme.bodyBoldFont }
+                    StyledTextLabel {
+                        Layout.fillWidth: true
+                        visible: songPlanPopup.planTab === 1
+                        text: qsTrc("aistudio", "Chords")
+                        font: ui.theme.bodyBoldFont
+                    }
 
                     Column {
                         Layout.fillWidth: true
+                        visible: songPlanPopup.planTab === 1
                         spacing: 2
 
                         Repeater {
@@ -514,6 +636,7 @@ Item {
 
                     RowLayout {
                         Layout.fillWidth: true
+                        visible: songPlanPopup.planTab === 1
                         spacing: 6
                         TextField { id: chordSymbolField; Layout.preferredWidth: 70; placeholderText: qsTrc("aistudio", "Chord") }
                         TextField { id: chordStartField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "Start") }
@@ -524,10 +647,16 @@ Item {
                         }
                     }
 
-                    StyledTextLabel { Layout.fillWidth: true; text: qsTrc("aistudio", "Melody"); font: ui.theme.bodyBoldFont }
+                    StyledTextLabel {
+                        Layout.fillWidth: true
+                        visible: songPlanPopup.planTab === 2
+                        text: qsTrc("aistudio", "Melody")
+                        font: ui.theme.bodyBoldFont
+                    }
 
                     Column {
                         Layout.fillWidth: true
+                        visible: songPlanPopup.planTab === 2
                         spacing: 2
 
                         Repeater {
@@ -546,6 +675,7 @@ Item {
 
                     RowLayout {
                         Layout.fillWidth: true
+                        visible: songPlanPopup.planTab === 2
                         spacing: 6
                         TextField { id: notePitchField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "MIDI") }
                         TextField { id: noteStartField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "Start") }
