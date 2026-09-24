@@ -457,53 +457,7 @@ Item {
                                                      root.scoreMode, stepsField.text, guidanceField.text, root.samplingMap())
             }
 
-            Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: ui.theme.strokeColor }
-
-            // ---------- Assets ----------
-            StyledTextLabel {
-                Layout.fillWidth: true
-                text: qsTrc("aistudio", "Library — This Project")
-                font: ui.theme.bodyBoldFont
-            }
-
-            ListView {
-                Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(contentHeight, 160)
-                clip: true
-                spacing: 6
-                model: AIStudioStatus.libraryAssets
-
-                delegate: Column {
-                    width: ListView.view.width
-                    spacing: 2
-
-                    StyledTextLabel {
-                        width: parent.width
-                        elide: Text.ElideRight
-                        text: modelData.name
-                        font: ui.theme.bodyBoldFont
-                    }
-                    StyledTextLabel {
-                        width: parent.width
-                        elide: Text.ElideRight
-                        text: modelData.origin + " · " + modelData.status
-                        font: ui.theme.bodyFont
-                    }
-                    FlatButton {
-                        visible: modelData.canAddToTimeline
-                        text: qsTrc("aistudio", "Insert audio")
-                        onClicked: AIStudioStatus.addLibraryAssetToTimeline(modelData.id)
-                    }
-                }
-            }
-
-            StyledTextLabel {
-                Layout.fillWidth: true
-                visible: AIStudioStatus.libraryAssets.length === 0
-                wrapMode: Text.Wrap
-                opacity: 0.7
-                text: qsTrc("aistudio", "Imported and generated assets stay here even when they are not on the timeline.")
-            }
+            
             }
 
             ColumnLayout {
