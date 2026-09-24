@@ -41,6 +41,26 @@ Item {
         return decodeURIComponent(url.toString().replace(/^file:\/\/\//, ""))
     }
 
+    function samplingMap() {
+        const values = {
+            "abc_temperature": abcTempField.text,
+            "abc_top_p": abcTopPField.text,
+            "abc_top_k": abcTopKField.text,
+            "abc_repetition_penalty": abcRepField.text,
+            "semantic_temperature": semTempField.text,
+            "semantic_top_p": semTopPField.text,
+            "semantic_top_k": semTopKField.text,
+            "semantic_repetition_penalty": semRepField.text
+        }
+        const sparse = {}
+        for (const key in values) {
+            if (values[key].trim().length > 0) {
+                sparse[key] = values[key]
+            }
+        }
+        return sparse
+    }
+
     // Enabling the per-project AI workspace is automatic once the project is saved.
     Component.onCompleted: AIStudioStatus.enableProjectWorkspace()
 
@@ -77,7 +97,7 @@ Item {
         nameFilters: [qsTrc("aistudio", "Prompt JSON (*.json)"), qsTrc("aistudio", "Prompt YAML (*.yaml *.yml)")]
         onAccepted: AIStudioStatus.exportPromptFile(root.localFile(selectedFile), styleField.text, lyricsField.text,
                                                     titleField.text, seedField.text, root.scoreMode, stepsField.text,
-                                                    guidanceField.text)
+                                                    guidanceField.text, root.samplingMap())
     }
 
     ScrollView {
@@ -279,6 +299,15 @@ Item {
                     if (AIStudioStatus.reuseCot.length > 0) root.scoreMode = AIStudioStatus.reuseCot
                     stepsField.text = AIStudioStatus.reuseSteps
                     guidanceField.text = AIStudioStatus.reuseGuidance
+                    const sampling = AIStudioStatus.reuseSampling || {}
+                    abcTempField.text = sampling.abc_temperature !== undefined ? sampling.abc_temperature : ""
+                    abcTopPField.text = sampling.abc_top_p !== undefined ? sampling.abc_top_p : ""
+                    abcTopKField.text = sampling.abc_top_k !== undefined ? sampling.abc_top_k : ""
+                    abcRepField.text = sampling.abc_repetition_penalty !== undefined ? sampling.abc_repetition_penalty : ""
+                    semTempField.text = sampling.semantic_temperature !== undefined ? sampling.semantic_temperature : ""
+                    semTopPField.text = sampling.semantic_top_p !== undefined ? sampling.semantic_top_p : ""
+                    semTopKField.text = sampling.semantic_top_k !== undefined ? sampling.semantic_top_k : ""
+                    semRepField.text = sampling.semantic_repetition_penalty !== undefined ? sampling.semantic_repetition_penalty : ""
                 }
                 function onCurrentSeedChanged() {
                     seedField.text = AIStudioStatus.currentSeed
@@ -395,12 +424,40 @@ Item {
                 Item { Layout.fillWidth: true }
             }
 
+            StyledTextLabel {
+                Layout.fillWidth: true
+                text: qsTrc("aistudio", "Advanced sampling")
+                font: ui.theme.bodyBoldFont
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 4
+
+                StyledTextLabel { Layout.preferredWidth: 58; text: qsTrc("aistudio", "ABC") }
+                TextField { id: abcTempField; Layout.fillWidth: true; placeholderText: qsTrc("aistudio", "temp") }
+                TextField { id: abcTopPField; Layout.fillWidth: true; placeholderText: qsTrc("aistudio", "top_p") }
+                TextField { id: abcTopKField; Layout.fillWidth: true; placeholderText: qsTrc("aistudio", "top_k") }
+                TextField { id: abcRepField; Layout.fillWidth: true; placeholderText: qsTrc("aistudio", "rep") }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 4
+
+                StyledTextLabel { Layout.preferredWidth: 58; text: qsTrc("aistudio", "Semantic") }
+                TextField { id: semTempField; Layout.fillWidth: true; placeholderText: qsTrc("aistudio", "temp") }
+                TextField { id: semTopPField; Layout.fillWidth: true; placeholderText: qsTrc("aistudio", "top_p") }
+                TextField { id: semTopKField; Layout.fillWidth: true; placeholderText: qsTrc("aistudio", "top_k") }
+                TextField { id: semRepField; Layout.fillWidth: true; placeholderText: qsTrc("aistudio", "rep") }
+            }
+
             FlatButton {
                 Layout.alignment: Qt.AlignHCenter
                 text: qsTrc("aistudio", "Generate")
                 enabled: lyricsField.text.trim().length > 0 && AIStudioStatus.modelConfigured
                 onClicked: AIStudioStatus.runYue2Job(lyricsField.text, styleField.text, seedField.text, titleField.text,
-                                                     root.scoreMode, stepsField.text, guidanceField.text)
+                                                     root.scoreMode, stepsField.text, guidanceField.text, root.samplingMap())
             }
 
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: ui.theme.strokeColor }

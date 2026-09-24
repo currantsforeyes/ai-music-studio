@@ -89,6 +89,21 @@ TEST(Yue2ProviderTests, ReadsEngineFieldNamesAndScoreMode)
     EXPECT_TRUE(arguments.contains(QStringLiteral("num_inference_steps=12")));
 }
 
+TEST(Yue2ProviderTests, PassesExtraRequestOptions)
+{
+    Yue2JobParameters parameters;
+    const QByteArray json = R"({ "lyrics": "la", "style": "pop", "options": { "abc_temperature": 1.5, "semantic_top_p": 0.9 } })";
+    QString error;
+    ASSERT_TRUE(parseYue2Parameters(json, QStringLiteral("cli.exe"), QStringLiteral("models"), 8, &parameters, &error))
+        << error.toStdString();
+    EXPECT_EQ(parameters.extraOptions.value(QStringLiteral("abc_temperature")), QStringLiteral("1.5"));
+    EXPECT_EQ(parameters.extraOptions.value(QStringLiteral("semantic_top_p")), QStringLiteral("0.9"));
+
+    const QStringList arguments = buildYue2Arguments(parameters, QStringLiteral("out.wav"), QStringLiteral("D:/job"));
+    EXPECT_TRUE(arguments.contains(QStringLiteral("abc_temperature=1.5")));
+    EXPECT_TRUE(arguments.contains(QStringLiteral("semantic_top_p=0.9")));
+}
+
 TEST(Yue2ProviderTests, PassesAbcFileRequestOption)
 {
     Yue2JobParameters parameters;

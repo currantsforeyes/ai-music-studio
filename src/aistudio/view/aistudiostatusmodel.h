@@ -31,6 +31,7 @@ class AIStudioStatusModel final : public QObject
     Q_PROPERTY(QString reuseCot READ reuseCot NOTIFY promptReuseChanged)
     Q_PROPERTY(QString reuseSteps READ reuseSteps NOTIFY promptReuseChanged)
     Q_PROPERTY(QString reuseGuidance READ reuseGuidance NOTIFY promptReuseChanged)
+    Q_PROPERTY(QVariantMap reuseSampling READ reuseSampling NOTIFY promptReuseChanged)
     Q_PROPERTY(QString currentSeed READ currentSeed NOTIFY currentSeedChanged)
 
 public:
@@ -55,6 +56,7 @@ public:
     QString reuseCot() const;
     QString reuseSteps() const;
     QString reuseGuidance() const;
+    QVariantMap reuseSampling() const;
     QString currentSeed() const;
     void setRuntimeStatus(const QString& status);
     void setWorkspaceStatus(const QString& status);
@@ -69,7 +71,7 @@ public:
     void updateModelModelPath(const QString& path);
     void setModelConfigured(bool configured);
     void setPromptReuse(const QString& style, const QString& lyrics, const QString& title, const QString& seed,
-                        const QString& cot, const QString& steps, const QString& guidance);
+                        const QString& cot, const QString& steps, const QString& guidance, const QVariantMap& sampling);
     void updateCurrentSeed(const QString& seed);
 
     Q_INVOKABLE void enableProjectWorkspace();
@@ -98,12 +100,12 @@ public:
     Q_INVOKABLE void retryJob(const QString& jobId);
     Q_INVOKABLE void insertJobOutput(const QString& jobId);
     Q_INVOKABLE void runYue2Job(const QString& lyrics, const QString& style, const QString& seed, const QString& title,
-                                const QString& cot, const QString& steps, const QString& guidance);
+                                const QString& cot, const QString& steps, const QString& guidance, const QVariantMap& sampling);
     Q_INVOKABLE void regenerateFromPlan();
     Q_INVOKABLE void importPromptFile(const QString& path);
     Q_INVOKABLE void exportPromptFile(const QString& path, const QString& style, const QString& lyrics,
                                       const QString& title, const QString& seed, const QString& cot,
-                                      const QString& steps, const QString& guidance);
+                                      const QString& steps, const QString& guidance, const QVariantMap& sampling);
     Q_INVOKABLE void refreshPlans();
     Q_INVOKABLE void createPlan(const QString& name);
     Q_INVOKABLE void loadPlan(const QString& planId);
@@ -151,11 +153,12 @@ signals:
     void jobRetryRequested(const QString& jobId);
     void jobInsertRequested(const QString& jobId);
     void yue2JobRequested(const QString& lyrics, const QString& style, const QString& seed, const QString& title,
-                          const QString& cot, const QString& steps, const QString& guidance);
+                          const QString& cot, const QString& steps, const QString& guidance, const QVariantMap& sampling);
     void regeneratePlanRequested();
     void importPromptRequested(const QString& path);
     void exportPromptRequested(const QString& path, const QString& style, const QString& lyrics, const QString& title,
-                               const QString& seed, const QString& cot, const QString& steps, const QString& guidance);
+                               const QString& seed, const QString& cot, const QString& steps, const QString& guidance,
+                               const QVariantMap& sampling);
     void promptReuseChanged();
     void currentSeedChanged();
     void plansChanged();
@@ -193,6 +196,7 @@ private:
     QString m_reuseCot;
     QString m_reuseSteps;
     QString m_reuseGuidance;
+    QVariantMap m_reuseSampling;
     QString m_currentSeed;
 };
 }

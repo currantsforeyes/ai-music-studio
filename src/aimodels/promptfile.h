@@ -19,6 +19,14 @@ struct PromptFields {
     QString seed;
     QString steps;
     QString guidanceScale;
+    QString abcTemperature;
+    QString abcTopP;
+    QString abcTopK;
+    QString abcRepetitionPenalty;
+    QString semanticTemperature;
+    QString semanticTopP;
+    QString semanticTopK;
+    QString semanticRepetitionPenalty;
 };
 
 //! Serializes to the engine request format (sparse, engine field names).

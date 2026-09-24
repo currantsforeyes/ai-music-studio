@@ -56,6 +56,22 @@ void assign(PromptFields* fields, const QString& key, const QString& value)
         fields->steps = value;
     } else if (key == QLatin1String("guidance_scale")) {
         fields->guidanceScale = value;
+    } else if (key == QLatin1String("abc_temperature")) {
+        fields->abcTemperature = value;
+    } else if (key == QLatin1String("abc_top_p")) {
+        fields->abcTopP = value;
+    } else if (key == QLatin1String("abc_top_k")) {
+        fields->abcTopK = value;
+    } else if (key == QLatin1String("abc_repetition_penalty")) {
+        fields->abcRepetitionPenalty = value;
+    } else if (key == QLatin1String("semantic_temperature")) {
+        fields->semanticTemperature = value;
+    } else if (key == QLatin1String("semantic_top_p")) {
+        fields->semanticTopP = value;
+    } else if (key == QLatin1String("semantic_top_k")) {
+        fields->semanticTopK = value;
+    } else if (key == QLatin1String("semantic_repetition_penalty")) {
+        fields->semanticRepetitionPenalty = value;
     }
 }
 }
@@ -83,6 +99,19 @@ QString serializePrompt(const PromptFields& fields, bool yaml)
         if (isNumber(fields.guidanceScale)) {
             object.insert(QStringLiteral("guidance_scale"), fields.guidanceScale.trimmed().toDouble());
         }
+        const auto putNumber = [&object](const char* key, const QString& value) {
+            if (isNumber(value) && !value.trimmed().isEmpty()) {
+                object.insert(QLatin1String(key), value.trimmed().toDouble());
+            }
+        };
+        putNumber("abc_temperature", fields.abcTemperature);
+        putNumber("abc_top_p", fields.abcTopP);
+        putNumber("abc_top_k", fields.abcTopK);
+        putNumber("abc_repetition_penalty", fields.abcRepetitionPenalty);
+        putNumber("semantic_temperature", fields.semanticTemperature);
+        putNumber("semantic_top_p", fields.semanticTopP);
+        putNumber("semantic_top_k", fields.semanticTopK);
+        putNumber("semantic_repetition_penalty", fields.semanticRepetitionPenalty);
         return QString::fromUtf8(QJsonDocument(object).toJson(QJsonDocument::Indented));
     }
 
@@ -123,6 +152,14 @@ QString serializePrompt(const PromptFields& fields, bool yaml)
     numericLine(QStringLiteral("seed"), fields.seed);
     numericLine(QStringLiteral("steps"), fields.steps);
     numericLine(QStringLiteral("guidance_scale"), fields.guidanceScale);
+    numericLine(QStringLiteral("abc_temperature"), fields.abcTemperature);
+    numericLine(QStringLiteral("abc_top_p"), fields.abcTopP);
+    numericLine(QStringLiteral("abc_top_k"), fields.abcTopK);
+    numericLine(QStringLiteral("abc_repetition_penalty"), fields.abcRepetitionPenalty);
+    numericLine(QStringLiteral("semantic_temperature"), fields.semanticTemperature);
+    numericLine(QStringLiteral("semantic_top_p"), fields.semanticTopP);
+    numericLine(QStringLiteral("semantic_top_k"), fields.semanticTopK);
+    numericLine(QStringLiteral("semantic_repetition_penalty"), fields.semanticRepetitionPenalty);
     return out;
 }
 

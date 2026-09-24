@@ -4,6 +4,7 @@
 #pragma once
 
 #include <QByteArray>
+#include <QMap>
 #include <QString>
 #include <QStringList>
 
@@ -27,6 +28,8 @@ struct Yue2JobParameters {
     // Score mode: "full" (melody + chords), "melody" (melody only), "off".
     QString cot = QStringLiteral("full");
     double guidanceScale = 0.0;
+    // Additional engine request options (e.g. abc_* / semantic_* sampling).
+    QMap<QString, QString> extraOptions;
 };
 
 // Parses parametersJson over the given defaults. Returns false (with a reason)

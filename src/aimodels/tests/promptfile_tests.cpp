@@ -19,6 +19,14 @@ PromptFields sample()
     fields.seed = QStringLiteral("42");
     fields.steps = QStringLiteral("8");
     fields.guidanceScale = QStringLiteral("3.5");
+    fields.abcTemperature = QStringLiteral("1.5");
+    fields.abcTopP = QStringLiteral("0.95");
+    fields.abcTopK = QStringLiteral("40");
+    fields.abcRepetitionPenalty = QStringLiteral("1.1");
+    fields.semanticTemperature = QStringLiteral("1.2");
+    fields.semanticTopP = QStringLiteral("0.9");
+    fields.semanticTopK = QStringLiteral("50");
+    fields.semanticRepetitionPenalty = QStringLiteral("1.05");
     return fields;
 }
 }
@@ -39,6 +47,14 @@ TEST(PromptFileTests, JsonRoundTrip)
     EXPECT_EQ(parsed.seed, fields.seed);
     EXPECT_EQ(parsed.steps, fields.steps);
     EXPECT_EQ(parsed.guidanceScale, fields.guidanceScale);
+    EXPECT_EQ(parsed.abcTemperature, fields.abcTemperature);
+    EXPECT_EQ(parsed.abcTopP, fields.abcTopP);
+    EXPECT_EQ(parsed.abcTopK, fields.abcTopK);
+    EXPECT_EQ(parsed.abcRepetitionPenalty, fields.abcRepetitionPenalty);
+    EXPECT_EQ(parsed.semanticTemperature, fields.semanticTemperature);
+    EXPECT_EQ(parsed.semanticTopP, fields.semanticTopP);
+    EXPECT_EQ(parsed.semanticTopK, fields.semanticTopK);
+    EXPECT_EQ(parsed.semanticRepetitionPenalty, fields.semanticRepetitionPenalty);
 }
 
 TEST(PromptFileTests, YamlRoundTrip)
@@ -58,6 +74,14 @@ TEST(PromptFileTests, YamlRoundTrip)
     EXPECT_EQ(parsed.seed, fields.seed);
     EXPECT_EQ(parsed.steps, fields.steps);
     EXPECT_EQ(parsed.guidanceScale, fields.guidanceScale);
+    EXPECT_EQ(parsed.abcTemperature, fields.abcTemperature);
+    EXPECT_EQ(parsed.abcTopP, fields.abcTopP);
+    EXPECT_EQ(parsed.abcTopK, fields.abcTopK);
+    EXPECT_EQ(parsed.abcRepetitionPenalty, fields.abcRepetitionPenalty);
+    EXPECT_EQ(parsed.semanticTemperature, fields.semanticTemperature);
+    EXPECT_EQ(parsed.semanticTopP, fields.semanticTopP);
+    EXPECT_EQ(parsed.semanticTopK, fields.semanticTopK);
+    EXPECT_EQ(parsed.semanticRepetitionPenalty, fields.semanticRepetitionPenalty);
 }
 
 TEST(PromptFileTests, SparseOutputOmitsEmptyFields)

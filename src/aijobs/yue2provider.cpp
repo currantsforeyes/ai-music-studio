@@ -88,6 +88,18 @@ bool parseYue2Parameters(const QByteArray& parametersJson,
         if (values.contains("guidance_scale")) {
             result.guidanceScale = values.value("guidance_scale").toDouble(result.guidanceScale);
         }
+        if (values.contains("options") && values.value("options").isObject()) {
+            const QJsonObject options = values.value("options").toObject();
+            for (auto it = options.constBegin(); it != options.constEnd(); ++it) {
+                if (it.value().isString()) {
+                    result.extraOptions.insert(it.key(), it.value().toString());
+                } else if (it.value().isDouble()) {
+                    result.extraOptions.insert(it.key(), QString::number(it.value().toDouble()));
+                } else if (it.value().isBool()) {
+                    result.extraOptions.insert(it.key(), it.value().toBool() ? QStringLiteral("true") : QStringLiteral("false"));
+                }
+            }
+        }
     }
 
     if (result.cliPath.trimmed().isEmpty()) {
@@ -140,6 +152,10 @@ QStringList buildYue2Arguments(const Yue2JobParameters& parameters, const QStrin
 
     if (parameters.guidanceScale > 0.0) {
         arguments << QStringLiteral("--request-option") << QStringLiteral("guidance_scale=%1").arg(parameters.guidanceScale);
+    }
+
+    for (auto it = parameters.extraOptions.constBegin(); it != parameters.extraOptions.constEnd(); ++it) {
+        arguments << QStringLiteral("--request-option") << QStringLiteral("%1=%2").arg(it.key(), it.value());
     }
 
     arguments << QStringLiteral("--request-option") << QStringLiteral("cot=%1").arg(parameters.cot)

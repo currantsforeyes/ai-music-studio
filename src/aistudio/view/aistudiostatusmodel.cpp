@@ -116,6 +116,11 @@ QString AIStudioStatusModel::reuseGuidance() const
     return m_reuseGuidance;
 }
 
+QVariantMap AIStudioStatusModel::reuseSampling() const
+{
+    return m_reuseSampling;
+}
+
 QString AIStudioStatusModel::currentSeed() const
 {
     return m_currentSeed;
@@ -231,7 +236,7 @@ void AIStudioStatusModel::setModelConfigured(bool configured)
 
 void AIStudioStatusModel::setPromptReuse(const QString& style, const QString& lyrics, const QString& title,
                                          const QString& seed, const QString& cot, const QString& steps,
-                                         const QString& guidance)
+                                         const QString& guidance, const QVariantMap& sampling)
 {
     m_reuseStyle = style;
     m_reuseLyrics = lyrics;
@@ -240,6 +245,7 @@ void AIStudioStatusModel::setPromptReuse(const QString& style, const QString& ly
     m_reuseCot = cot;
     m_reuseSteps = steps;
     m_reuseGuidance = guidance;
+    m_reuseSampling = sampling;
     emit promptReuseChanged();
 }
 
@@ -418,10 +424,10 @@ void AIStudioStatusModel::insertJobOutput(const QString& jobId)
 }
 
 void AIStudioStatusModel::runYue2Job(const QString& lyrics, const QString& style, const QString& seed, const QString& title,
-                                     const QString& cot, const QString& steps, const QString& guidance)
+                                     const QString& cot, const QString& steps, const QString& guidance, const QVariantMap& sampling)
 {
     if (!lyrics.trimmed().isEmpty()) {
-        emit yue2JobRequested(lyrics, style, seed, title, cot, steps, guidance);
+        emit yue2JobRequested(lyrics, style, seed, title, cot, steps, guidance, sampling);
     }
 }
 
@@ -432,9 +438,9 @@ void AIStudioStatusModel::importPromptFile(const QString& path)
 
 void AIStudioStatusModel::exportPromptFile(const QString& path, const QString& style, const QString& lyrics,
                                            const QString& title, const QString& seed, const QString& cot,
-                                           const QString& steps, const QString& guidance)
+                                           const QString& steps, const QString& guidance, const QVariantMap& sampling)
 {
-    emit exportPromptRequested(path, style, lyrics, title, seed, cot, steps, guidance);
+    emit exportPromptRequested(path, style, lyrics, title, seed, cot, steps, guidance, sampling);
 }
 
 void AIStudioStatusModel::regenerateFromPlan()

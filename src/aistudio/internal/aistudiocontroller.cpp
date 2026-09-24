@@ -184,8 +184,9 @@ void AIStudioController::init()
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::yue2JobRequested,
                      m_runtimeHost.get(), [this](const QString& lyrics, const QString& style,
                                                  const QString& seed, const QString& title,
-                                                 const QString& cot, const QString& steps, const QString& guidance) {
-        submitYue2Job(lyrics, style, seed, title, cot, steps, guidance);
+                                                 const QString& cot, const QString& steps, const QString& guidance,
+                                                 const QVariantMap& sampling) {
+        submitYue2Job(lyrics, style, seed, title, cot, steps, guidance, sampling);
     });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::regeneratePlanRequested,
                      m_runtimeHost.get(), [this] { regenerateFromPlan(); });
@@ -194,8 +195,8 @@ void AIStudioController::init()
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::exportPromptRequested,
                      m_runtimeHost.get(), [this](const QString& path, const QString& style, const QString& lyrics,
                                                  const QString& title, const QString& seed, const QString& cot,
-                                                 const QString& steps, const QString& guidance) {
-        exportPromptFile(path, style, lyrics, title, seed, cot, steps, guidance);
+                                                 const QString& steps, const QString& guidance, const QVariantMap& sampling) {
+        exportPromptFile(path, style, lyrics, title, seed, cot, steps, guidance, sampling);
     });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::plansRefreshRequested,
                      m_runtimeHost.get(), [this] { refreshPlans(); });
@@ -1148,6 +1149,11 @@ void AIStudioController::reusePromptForTrack(const au::trackedit::ClipKey& clipK
     const QString lyrics = parameters.contains(QStringLiteral("lyrics"))
                            ? parameters.value(QStringLiteral("lyrics")).toString()
                            : parameters.value(QStringLiteral("text")).toString();
+    QVariantMap sampling;
+    const QJsonObject options = parameters.value(QStringLiteral("options")).toObject();
+    for (auto it = options.constBegin(); it != options.constEnd(); ++it) {
+        sampling.insert(it.key(), it.value().toVariant().toString());
+    }
     AIStudioStatusModel::instance()->setPromptReuse(
         parameters.value(QStringLiteral("style")).toString(),
         lyrics,
@@ -1155,7 +1161,8 @@ void AIStudioController::reusePromptForTrack(const au::trackedit::ClipKey& clipK
         seed,
         parameters.value(QStringLiteral("cot")).toString(),
         steps,
-        guidance);
+        guidance,
+        sampling);
     loadPlanForJob(jobId);
     dispatcher()->dispatch("dock-set-open", ActionData::make_arg2<QString, bool>(AI_STUDIO_DOCK, true));
     AIStudioStatusModel::instance()->setWorkspaceStatus(
@@ -1283,9 +1290,23 @@ void AIStudioController::setModelModelPath(const QString& path)
     AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Saved the YuE2 model folder"));
 }
 
+namespace {
+QJsonObject samplingOptions(const QVariantMap& sampling)
+{
+    QJsonObject options;
+    for (auto it = sampling.constBegin(); it != sampling.constEnd(); ++it) {
+        const QString value = it.value().toString().trimmed();
+        if (!value.isEmpty()) {
+            options.insert(it.key(), value);
+        }
+    }
+    return options;
+}
+}
+
 void AIStudioController::submitYue2Job(const QString& lyrics, const QString& style, const QString& seed,
                                        const QString& title, const QString& cot, const QString& steps,
-                                       const QString& guidance)
+                                       const QString& guidance, const QVariantMap& sampling)
 {
     if (m_activeWorkspace.isEmpty()) {
         AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Enable the project AI workspace before generating a song"));
@@ -1316,6 +1337,9 @@ void AIStudioController::submitYue2Job(const QString& lyrics, const QString& sty
     const double guidanceValue = guidance.trimmed().toDouble(&guidanceOk);
     if (guidanceOk && guidanceValue > 0.0) {
         parameters.insert("guidance_scale", guidanceValue);
+    }
+    if (!sampling.isEmpty()) {
+        parameters.insert("options", samplingOptions(sampling));
     }
     if (!title.trimmed().isEmpty()) {
         parameters.insert("title", title);
@@ -1443,8 +1467,22 @@ void AIStudioController::importPromptFile(const QString& path)
         AIStudioStatusModel::instance()->setWorkspaceStatus(error);
         return;
     }
+    QVariantMap sampling;
+    const auto put = [&sampling](const QString& key, const QString& value) {
+        if (!value.trimmed().isEmpty()) {
+            sampling.insert(key, value);
+        }
+    };
+    put(QStringLiteral("abc_temperature"), fields.abcTemperature);
+    put(QStringLiteral("abc_top_p"), fields.abcTopP);
+    put(QStringLiteral("abc_top_k"), fields.abcTopK);
+    put(QStringLiteral("abc_repetition_penalty"), fields.abcRepetitionPenalty);
+    put(QStringLiteral("semantic_temperature"), fields.semanticTemperature);
+    put(QStringLiteral("semantic_top_p"), fields.semanticTopP);
+    put(QStringLiteral("semantic_top_k"), fields.semanticTopK);
+    put(QStringLiteral("semantic_repetition_penalty"), fields.semanticRepetitionPenalty);
     AIStudioStatusModel::instance()->setPromptReuse(
-        fields.style, fields.lyrics, fields.title, fields.seed, fields.cot, fields.steps, fields.guidanceScale);
+        fields.style, fields.lyrics, fields.title, fields.seed, fields.cot, fields.steps, fields.guidanceScale, sampling);
     dispatcher()->dispatch("dock-set-open", ActionData::make_arg2<QString, bool>(AI_STUDIO_DOCK, true));
     AIStudioStatusModel::instance()->setWorkspaceStatus(
         QObject::tr("Loaded prompt from %1").arg(QFileInfo(path).fileName()));
@@ -1452,7 +1490,7 @@ void AIStudioController::importPromptFile(const QString& path)
 
 void AIStudioController::exportPromptFile(const QString& path, const QString& style, const QString& lyrics,
                                           const QString& title, const QString& seed, const QString& cot,
-                                          const QString& steps, const QString& guidance)
+                                          const QString& steps, const QString& guidance, const QVariantMap& sampling)
 {
     au::aimodels::PromptFields fields;
     fields.style = style;
@@ -1462,6 +1500,14 @@ void AIStudioController::exportPromptFile(const QString& path, const QString& st
     fields.cot = cot;
     fields.steps = steps;
     fields.guidanceScale = guidance;
+    fields.abcTemperature = sampling.value(QStringLiteral("abc_temperature")).toString();
+    fields.abcTopP = sampling.value(QStringLiteral("abc_top_p")).toString();
+    fields.abcTopK = sampling.value(QStringLiteral("abc_top_k")).toString();
+    fields.abcRepetitionPenalty = sampling.value(QStringLiteral("abc_repetition_penalty")).toString();
+    fields.semanticTemperature = sampling.value(QStringLiteral("semantic_temperature")).toString();
+    fields.semanticTopP = sampling.value(QStringLiteral("semantic_top_p")).toString();
+    fields.semanticTopK = sampling.value(QStringLiteral("semantic_top_k")).toString();
+    fields.semanticRepetitionPenalty = sampling.value(QStringLiteral("semantic_repetition_penalty")).toString();
     const bool yaml = path.endsWith(QLatin1String(".yaml"), Qt::CaseInsensitive)
                       || path.endsWith(QLatin1String(".yml"), Qt::CaseInsensitive);
     const QString text = au::aimodels::serializePrompt(fields, yaml);
