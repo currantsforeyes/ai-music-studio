@@ -29,6 +29,7 @@ class AIStudioStatusModel final : public QObject
     Q_PROPERTY(QString reuseTitle READ reuseTitle NOTIFY promptReuseChanged)
     Q_PROPERTY(QString reuseSeed READ reuseSeed NOTIFY promptReuseChanged)
     Q_PROPERTY(QString reuseCot READ reuseCot NOTIFY promptReuseChanged)
+    Q_PROPERTY(QString reuseDuration READ reuseDuration NOTIFY promptReuseChanged)
     Q_PROPERTY(QString reuseSteps READ reuseSteps NOTIFY promptReuseChanged)
     Q_PROPERTY(QString reuseGuidance READ reuseGuidance NOTIFY promptReuseChanged)
     Q_PROPERTY(QVariantMap reuseSampling READ reuseSampling NOTIFY promptReuseChanged)
@@ -65,6 +66,7 @@ public:
     QString reuseTitle() const;
     QString reuseSeed() const;
     QString reuseCot() const;
+    QString reuseDuration() const;
     QString reuseSteps() const;
     QString reuseGuidance() const;
     QVariantMap reuseSampling() const;
@@ -93,7 +95,8 @@ public:
     void updateModelModelPath(const QString& path);
     void setModelConfigured(bool configured);
     void setPromptReuse(const QString& style, const QString& lyrics, const QString& title, const QString& seed,
-                        const QString& cot, const QString& steps, const QString& guidance, const QVariantMap& sampling);
+                        const QString& cot, const QString& duration, const QString& steps, const QString& guidance,
+                        const QVariantMap& sampling);
     void updateCurrentSeed(const QString& seed);
     void setExamples(const QVariantList& examples);
     void updateAssistantBusy(bool busy);
@@ -128,8 +131,8 @@ public:
     Q_INVOKABLE void retryJob(const QString& jobId);
     Q_INVOKABLE void insertJobOutput(const QString& jobId);
     Q_INVOKABLE void runYue2Job(const QString& providerId, const QString& lyrics, const QString& style, const QString& seed,
-                                const QString& title, const QString& cot, const QString& steps, const QString& guidance,
-                                const QVariantMap& sampling);
+                                const QString& title, const QString& cot, const QString& duration, const QString& steps,
+                                const QString& guidance, const QVariantMap& sampling);
     Q_INVOKABLE void regenerateFromPlan();
     Q_INVOKABLE void loadExample(int index);
     Q_INVOKABLE void createPrompt(const QString& lyrics);
@@ -140,7 +143,7 @@ public:
     void notifyAssistantResult(const QString& field, const QString& text);
     Q_INVOKABLE void importPromptFile(const QString& path);
     Q_INVOKABLE void exportPromptFile(const QString& path, const QString& style, const QString& lyrics,
-                                      const QString& title, const QString& seed, const QString& cot,
+                                      const QString& title, const QString& seed, const QString& cot, const QString& duration,
                                       const QString& steps, const QString& guidance, const QVariantMap& sampling);
     Q_INVOKABLE void refreshPlans();
     Q_INVOKABLE void createPlan(const QString& name);
@@ -189,8 +192,8 @@ signals:
     void jobRetryRequested(const QString& jobId);
     void jobInsertRequested(const QString& jobId);
     void yue2JobRequested(const QString& providerId, const QString& lyrics, const QString& style, const QString& seed,
-                          const QString& title, const QString& cot, const QString& steps, const QString& guidance,
-                          const QVariantMap& sampling);
+                          const QString& title, const QString& cot, const QString& duration, const QString& steps,
+                          const QString& guidance, const QVariantMap& sampling);
     void regeneratePlanRequested();
     void exampleLoadRequested(int index);
     void examplesChanged();
@@ -206,8 +209,8 @@ signals:
                                   const QString& apiKey, const QString& runnerPath, const QString& modelPath, int port);
     void importPromptRequested(const QString& path);
     void exportPromptRequested(const QString& path, const QString& style, const QString& lyrics, const QString& title,
-                               const QString& seed, const QString& cot, const QString& steps, const QString& guidance,
-                               const QVariantMap& sampling);
+                               const QString& seed, const QString& cot, const QString& duration, const QString& steps,
+                               const QString& guidance, const QVariantMap& sampling);
     void promptReuseChanged();
     void currentSeedChanged();
     void plansChanged();
@@ -243,6 +246,7 @@ private:
     QString m_reuseTitle;
     QString m_reuseSeed;
     QString m_reuseCot;
+    QString m_reuseDuration;
     QString m_reuseSteps;
     QString m_reuseGuidance;
     QVariantMap m_reuseSampling;

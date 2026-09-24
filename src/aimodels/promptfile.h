@@ -16,6 +16,7 @@ struct PromptFields {
     QString title;
     QString abc;
     QString cot;
+    QString duration;
     QString seed;
     QString steps;
     QString guidanceScale;

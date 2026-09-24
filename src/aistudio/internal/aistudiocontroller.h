@@ -65,12 +65,12 @@ private:
     void retryJob(const QString& jobId);
     void insertJobOutput(const QString& jobId);
     void submitYue2Job(const QString& providerId, const QString& lyrics, const QString& style, const QString& seed,
-                       const QString& title, const QString& cot, const QString& steps, const QString& guidance,
-                       const QVariantMap& sampling);
+                       const QString& title, const QString& cot, const QString& duration, const QString& steps,
+                       const QString& guidance, const QVariantMap& sampling);
     void importPromptFile(const QString& path);
     void exportPromptFile(const QString& path, const QString& style, const QString& lyrics, const QString& title,
-                          const QString& seed, const QString& cot, const QString& steps, const QString& guidance,
-                          const QVariantMap& sampling);
+                          const QString& seed, const QString& cot, const QString& duration, const QString& steps,
+                          const QString& guidance, const QVariantMap& sampling);
     void importPendingResults();
     void createPrompt(const QString& lyrics);
     void improvePrompt(const QString& style);

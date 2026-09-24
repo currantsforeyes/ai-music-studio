@@ -119,8 +119,8 @@ Item {
         defaultSuffix: "json"
         nameFilters: [qsTrc("aistudio", "Prompt JSON (*.json)"), qsTrc("aistudio", "Prompt YAML (*.yaml *.yml)")]
         onAccepted: AIStudioStatus.exportPromptFile(root.localFile(selectedFile), styleField.text, lyricsField.text,
-                                                    titleField.text, seedField.text, root.scoreMode, stepsField.text,
-                                                    guidanceField.text, root.samplingMap())
+                                                    titleField.text, seedField.text, root.scoreMode, durationField.text,
+                                                    stepsField.text, guidanceField.text, root.samplingMap())
     }
 
     ScrollView {
@@ -292,6 +292,7 @@ Item {
                     lyricsField.text = AIStudioStatus.reuseLyrics
                     seedField.text = AIStudioStatus.reuseSeed
                     if (AIStudioStatus.reuseCot.length > 0) root.scoreMode = AIStudioStatus.reuseCot
+                    durationField.text = AIStudioStatus.reuseDuration
                     stepsField.text = AIStudioStatus.reuseSteps
                     guidanceField.text = AIStudioStatus.reuseGuidance
                     const sampling = AIStudioStatus.reuseSampling || {}
@@ -426,6 +427,13 @@ Item {
                     Layout.preferredWidth: 56
                     placeholderText: qsTrc("aistudio", "auto")
                 }
+                StyledTextLabel { text: qsTrc("aistudio", "Duration") }
+                TextField {
+                    id: durationField
+                    Layout.preferredWidth: 56
+                    placeholderText: qsTrc("aistudio", "360")
+                    inputMethodHints: Qt.ImhDigitsOnly
+                }
                 Item { Layout.fillWidth: true }
             }
 
@@ -462,7 +470,7 @@ Item {
                 text: qsTrc("aistudio", "Generate")
                 enabled: lyricsField.text.trim().length > 0 && AIStudioStatus.modelConfigured
                 onClicked: AIStudioStatus.runYue2Job(root.selectedModel, lyricsField.text, styleField.text, seedField.text, titleField.text,
-                                                     root.scoreMode, stepsField.text, guidanceField.text, root.samplingMap())
+                                                     root.scoreMode, durationField.text, stepsField.text, guidanceField.text, root.samplingMap())
             }
 
             

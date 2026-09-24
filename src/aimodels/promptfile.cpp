@@ -50,6 +50,8 @@ void assign(PromptFields* fields, const QString& key, const QString& value)
         fields->abc = value;
     } else if (key == QLatin1String("cot")) {
         fields->cot = value;
+    } else if (key == QLatin1String("duration")) {
+        fields->duration = value;
     } else if (key == QLatin1String("seed")) {
         fields->seed = value;
     } else if (key == QLatin1String("steps")) {
@@ -90,6 +92,9 @@ QString serializePrompt(const PromptFields& fields, bool yaml)
         putString("title", fields.title);
         putString("abc", fields.abc);
         putString("cot", fields.cot);
+        if (isNumber(fields.duration)) {
+            object.insert(QStringLiteral("duration"), fields.duration.trimmed().toDouble());
+        }
         if (isNumber(fields.seed)) {
             object.insert(QStringLiteral("seed"), fields.seed.trimmed().toInt());
         }
@@ -149,6 +154,7 @@ QString serializePrompt(const PromptFields& fields, bool yaml)
     scalarLine(QStringLiteral("title"), fields.title);
     scalarLine(QStringLiteral("abc"), fields.abc);
     scalarLine(QStringLiteral("cot"), fields.cot);
+    numericLine(QStringLiteral("duration"), fields.duration);
     numericLine(QStringLiteral("seed"), fields.seed);
     numericLine(QStringLiteral("steps"), fields.steps);
     numericLine(QStringLiteral("guidance_scale"), fields.guidanceScale);

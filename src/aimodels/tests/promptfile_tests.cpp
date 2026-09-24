@@ -16,6 +16,7 @@ PromptFields sample()
     fields.lyrics = QStringLiteral("[Verse]\nhello\n[Chorus]\nworld");
     fields.title = QStringLiteral("Juliet In Blue");
     fields.cot = QStringLiteral("full");
+    fields.duration = QStringLiteral("180");
     fields.seed = QStringLiteral("42");
     fields.steps = QStringLiteral("8");
     fields.guidanceScale = QStringLiteral("3.5");
@@ -44,6 +45,7 @@ TEST(PromptFileTests, JsonRoundTrip)
     EXPECT_EQ(parsed.lyrics, fields.lyrics);
     EXPECT_EQ(parsed.title, fields.title);
     EXPECT_EQ(parsed.cot, fields.cot);
+    EXPECT_EQ(parsed.duration, fields.duration);
     EXPECT_EQ(parsed.seed, fields.seed);
     EXPECT_EQ(parsed.steps, fields.steps);
     EXPECT_EQ(parsed.guidanceScale, fields.guidanceScale);
@@ -71,6 +73,7 @@ TEST(PromptFileTests, YamlRoundTrip)
     EXPECT_EQ(parsed.lyrics, fields.lyrics);
     EXPECT_EQ(parsed.title, fields.title);
     EXPECT_EQ(parsed.cot, fields.cot);
+    EXPECT_EQ(parsed.duration, fields.duration);
     EXPECT_EQ(parsed.seed, fields.seed);
     EXPECT_EQ(parsed.steps, fields.steps);
     EXPECT_EQ(parsed.guidanceScale, fields.guidanceScale);
