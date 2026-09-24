@@ -268,19 +268,10 @@ Item {
                 spacing: 2
                 model: AIStudioStatus.examples
 
-                delegate: RowLayout {
+                delegate: FlatButton {
                     width: ListView.view.width
-                    spacing: 6
-
-                    StyledTextLabel {
-                        Layout.fillWidth: true
-                        elide: Text.ElideRight
-                        text: modelData.name
-                    }
-                    FlatButton {
-                        text: qsTrc("aistudio", "Load")
-                        onClicked: AIStudioStatus.loadExample(index)
-                    }
+                    text: modelData.name
+                    onClicked: AIStudioStatus.loadExample(index)
                 }
             }
 
