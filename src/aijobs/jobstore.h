@@ -36,6 +36,12 @@ public:
                             QString* errorMessage = nullptr);
     static QString jobForTrack(const QString& workspacePath, qint64 trackId);
 
+    // Associates a human-readable name (the generated track/clip title) with the
+    // job, so the link can be recovered after a reload when ids change.
+    static bool setJobTitle(const QString& workspacePath, const QString& title, const QString& jobId,
+                            QString* errorMessage = nullptr);
+    static QString jobForTitle(const QString& workspacePath, const QString& title);
+
     // Absolute path of a completed job's audio asset, or empty with a reason in
     // errorMessage when the job is incomplete, already inserted, or missing.
     static QString resultAssetPath(const QString& workspacePath, const QString& jobId,

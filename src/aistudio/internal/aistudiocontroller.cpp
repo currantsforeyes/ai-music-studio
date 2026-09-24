@@ -1065,20 +1065,23 @@ void AIStudioController::insertJobOutput(const QString& jobId)
             if (std::find(before.begin(), before.end(), trackId) != before.end()) {
                 continue;
             }
-            const QString title = savedRequestField(m_activeWorkspace, jobId, QStringLiteral("title"));
-            if (!title.isEmpty() && tracks()) {
-                tracks()->changeTrackTitle(trackId, muse::String::fromQString(title));
+            const QString savedTitle = savedRequestField(m_activeWorkspace, jobId, QStringLiteral("title"));
+            const QString displayName = savedTitle.trimmed().isEmpty()
+                                        ? QObject::tr("YuE2 %1").arg(jobId.mid(5, 8))
+                                        : savedTitle.trimmed();
+            if (tracks()) {
+                tracks()->changeTrackTitle(trackId, muse::String::fromQString(displayName));
             }
-            // Tag the clip with the job id so the link survives a project reload.
             au::trackedit::ClipKey newClipKey;
             for (const au::trackedit::Clip& clip : trackProject->clipList(trackId)) {
                 newClipKey = clip.key;
                 break;
             }
             if (newClipKey.isValid() && trackedit()) {
-                trackedit()->changeClipTitle(newClipKey, muse::String::fromQString(jobId));
+                trackedit()->changeClipTitle(newClipKey, muse::String::fromQString(displayName));
             }
             au::aijobs::JobStore::setTrackJob(m_activeWorkspace, trackId, jobId);
+            au::aijobs::JobStore::setJobTitle(m_activeWorkspace, displayName, jobId);
             // Show this clip's song plan straight away.
             if (newClipKey.isValid()) {
                 loadPlanForClip(newClipKey);
@@ -1143,6 +1146,10 @@ QString AIStudioController::jobIdForClip(const au::trackedit::ClipKey& clipKey) 
             const QString title = QString::fromStdString(clip.title.toStdString());
             if (title.startsWith(QStringLiteral("yue2-"))) {
                 return title;
+            }
+            const QString byTitle = au::aijobs::JobStore::jobForTitle(m_activeWorkspace, title);
+            if (!byTitle.isEmpty()) {
+                return byTitle;
             }
         }
     }

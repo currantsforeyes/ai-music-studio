@@ -344,3 +344,31 @@ QString JobStore::jobForTrack(const QString& workspacePath, qint64 trackId)
     }
     return root.value("trackJobs").toObject().value(QString::number(trackId)).toString();
 }
+
+bool JobStore::setJobTitle(const QString& workspacePath, const QString& title, const QString& jobId,
+                           QString* errorMessage)
+{
+    if (workspacePath.isEmpty() || title.trimmed().isEmpty() || jobId.isEmpty()) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("A workspace, title and job are required to link a generated track");
+        }
+        return false;
+    }
+    QJsonObject root;
+    if (!readManifest(workspacePath, &root, errorMessage)) {
+        return false;
+    }
+    QJsonObject jobTitles = root.value("jobTitles").toObject();
+    jobTitles.insert(title, jobId);
+    root.insert("jobTitles", jobTitles);
+    return saveManifest(workspacePath, root, errorMessage);
+}
+
+QString JobStore::jobForTitle(const QString& workspacePath, const QString& title)
+{
+    QJsonObject root;
+    if (!readManifest(workspacePath, &root, nullptr)) {
+        return {};
+    }
+    return root.value("jobTitles").toObject().value(title).toString();
+}

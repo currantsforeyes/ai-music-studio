@@ -201,4 +201,23 @@ TEST(JobStoreTests, LinksTracksToJobs)
     EXPECT_EQ(JobStore::jobForTrack(workspace, 42), QStringLiteral("job-42"));
 }
 
+TEST(JobStoreTests, LinksTitlesToJobs)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString projectPath = directory.filePath("jobstore.aup4");
+    ASSERT_TRUE(aiproject::WorkspaceStore::create(projectPath));
+    const QString workspace = aiproject::WorkspaceStore::workspacePathForProject(projectPath);
+
+    QString error;
+    ASSERT_TRUE(JobStore::setJobTitle(workspace, "Juliet In Blue", "job-a", &error)) << error.toStdString();
+    EXPECT_EQ(JobStore::jobForTitle(workspace, "Juliet In Blue"), QStringLiteral("job-a"));
+    EXPECT_TRUE(JobStore::jobForTitle(workspace, "Unknown").isEmpty());
+
+    ASSERT_TRUE(JobStore::setJobTitle(workspace, "Second Song", "job-b", &error));
+    ASSERT_TRUE(JobStore::upsert(workspace, makeJob("job-a", aicore::JobState::Complete), &error));
+    EXPECT_EQ(JobStore::jobForTitle(workspace, "Juliet In Blue"), QStringLiteral("job-a"));
+    EXPECT_EQ(JobStore::jobForTitle(workspace, "Second Song"), QStringLiteral("job-b"));
+}
+
 }
