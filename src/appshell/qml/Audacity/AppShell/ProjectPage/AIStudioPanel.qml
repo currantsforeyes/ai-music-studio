@@ -288,6 +288,35 @@ Item {
                 Item { Layout.fillWidth: true }
             }
 
+            StyledTextLabel {
+                Layout.fillWidth: true
+                text: qsTrc("aistudio", "Examples")
+                font: ui.theme.bodyBoldFont
+            }
+
+            ListView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(contentHeight, 120)
+                clip: true
+                spacing: 2
+                model: AIStudioStatus.examples
+
+                delegate: RowLayout {
+                    width: ListView.view.width
+                    spacing: 6
+
+                    StyledTextLabel {
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        text: modelData.name
+                    }
+                    FlatButton {
+                        text: qsTrc("aistudio", "Load")
+                        onClicked: AIStudioStatus.loadExample(index)
+                    }
+                }
+            }
+
             // Reload a saved generation's inputs (from "Reuse Prompt").
             Connections {
                 target: AIStudioStatus

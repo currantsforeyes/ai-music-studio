@@ -121,6 +121,11 @@ QVariantMap AIStudioStatusModel::reuseSampling() const
     return m_reuseSampling;
 }
 
+QVariantList AIStudioStatusModel::examples() const
+{
+    return m_examples;
+}
+
 QString AIStudioStatusModel::currentSeed() const
 {
     return m_currentSeed;
@@ -256,6 +261,15 @@ void AIStudioStatusModel::updateCurrentSeed(const QString& seed)
     }
     m_currentSeed = seed;
     emit currentSeedChanged();
+}
+
+void AIStudioStatusModel::setExamples(const QVariantList& examples)
+{
+    if (m_examples == examples) {
+        return;
+    }
+    m_examples = examples;
+    emit examplesChanged();
 }
 
 void AIStudioStatusModel::enableProjectWorkspace()
@@ -446,6 +460,11 @@ void AIStudioStatusModel::exportPromptFile(const QString& path, const QString& s
 void AIStudioStatusModel::regenerateFromPlan()
 {
     emit regeneratePlanRequested();
+}
+
+void AIStudioStatusModel::loadExample(int index)
+{
+    emit exampleLoadRequested(index);
 }
 
 void AIStudioStatusModel::refreshPlans()

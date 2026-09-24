@@ -102,6 +102,50 @@ WavMetadata wavMetadata(const QString& filePath)
 }
 }
 
+namespace {
+QVariantList promptExamples()
+{
+    QVariantList examples;
+    const auto add = [&examples](const QString& name, const QString& style, const QString& lyrics,
+                                 const QString& cot) {
+        examples.append(QVariantMap {
+            { "name", name },
+            { "style", style },
+            { "lyrics", lyrics },
+            { "cot", cot },
+            { "steps", QStringLiteral("8") }
+        });
+    };
+
+    add(QStringLiteral("Indie pop ballad"),
+        QStringLiteral("indie pop-rock ballad, clean electric guitar arpeggios, close-miked piano, warm male baritone, 82 BPM"),
+        QStringLiteral("[Verse]\nMorning light on the kitchen floor\nI keep your letter by the door\n[Chorus]\nAnd I sing, oh I sing\nFor the quiet everything"),
+        QStringLiteral("full"));
+
+    add(QStringLiteral("Synthwave"),
+        QStringLiteral("synthwave, analog synths, drum machine, female voice, 112 BPM"),
+        QStringLiteral("[Verse]\nNeon rivers under midnight\nChrome reflections in your eyes\n[Chorus]\nWe drive into the static\nWhere the city never dies"),
+        QStringLiteral("full"));
+
+    add(QStringLiteral("Funk disco"),
+        QStringLiteral("funk disco, slap bass, wah guitar, brass section, 118 BPM"),
+        QStringLiteral("[Verse]\nStep into the rhythm, let it move your feet\nUptown speakers got a brand new beat\n[Chorus]\nShake it to the left, shake it to the right\nDancing in the glow of a Saturday night"),
+        QStringLiteral("full"));
+
+    add(QStringLiteral("Country"),
+        QStringLiteral("country, male baritone, pedal steel, fiddle, 96 BPM"),
+        QStringLiteral("[Verse]\nDust on the dashboard, gravel in my shoes\nThis old highway only carries the blues\n[Chorus]\nTake me home where the cottonwoods grow\nWhere the river runs easy and the evenings are slow"),
+        QStringLiteral("full"));
+
+    add(QStringLiteral("City pop"),
+        QStringLiteral("city pop, electric piano, funky bass, 108 BPM"),
+        QStringLiteral("[Verse]\nTaxi lights on a rain-slick street\nCoffee cooling to a steady beat\n[Chorus]\nMidnight avenue, hold me in the glow\nWe can take it slow"),
+        QStringLiteral("full"));
+
+    return examples;
+}
+}
+
 void AIStudioController::init()
 {
     m_runtimeHost = std::make_shared<au::aijobs::RuntimeHostSupervisor>();
@@ -110,6 +154,7 @@ void AIStudioController::init()
                      AIStudioStatusModel::instance(), &AIStudioStatusModel::setRuntimeStatus);
     m_runtimeHost->setJobStatusHandler([this](const au::aicore::JobStatus& status) { recordJobStatus(status); });
     applyModelSettings();
+    AIStudioStatusModel::instance()->setExamples(promptExamples());
     if (selectionController()) {
         selectionController()->clipsSelected().onReceive(this, [this](const au::trackedit::ClipKeyList&) {
             onClipSelectionChanged();
@@ -190,6 +235,8 @@ void AIStudioController::init()
     });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::regeneratePlanRequested,
                      m_runtimeHost.get(), [this] { regenerateFromPlan(); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::exampleLoadRequested,
+                     m_runtimeHost.get(), [this](int index) { loadExample(index); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::importPromptRequested,
                      m_runtimeHost.get(), [this](const QString& path) { importPromptFile(path); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::exportPromptRequested,
@@ -1429,6 +1476,27 @@ void AIStudioController::regenerateFromPlan()
     AIStudioStatusModel::instance()->updateCurrentSeed(QString::number(seedValue));
     AIStudioStatusModel::instance()->setWorkspaceStatus(
         QObject::tr("Regenerating from the edited song plan (seed %1)").arg(seedValue));
+}
+
+void AIStudioController::loadExample(int index)
+{
+    const QVariantList examples = promptExamples();
+    if (index < 0 || index >= examples.size()) {
+        return;
+    }
+    const QVariantMap example = examples.at(index).toMap();
+    AIStudioStatusModel::instance()->setPromptReuse(
+        example.value(QStringLiteral("style")).toString(),
+        example.value(QStringLiteral("lyrics")).toString(),
+        example.value(QStringLiteral("name")).toString(),
+        QString(),
+        example.value(QStringLiteral("cot")).toString(),
+        example.value(QStringLiteral("steps")).toString(),
+        QString(),
+        QVariantMap());
+    dispatcher()->dispatch("dock-set-open", ActionData::make_arg2<QString, bool>(AI_STUDIO_DOCK, true));
+    AIStudioStatusModel::instance()->setWorkspaceStatus(
+        QObject::tr("Loaded example \"%1\"").arg(example.value(QStringLiteral("name")).toString()));
 }
 
 void AIStudioController::importPendingResults()

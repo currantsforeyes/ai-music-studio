@@ -72,6 +72,7 @@ private:
     void importPendingResults();
     void reusePromptForTrack(const au::trackedit::ClipKey& clipKey);
     void regenerateFromPlan();
+    void loadExample(int index);
     void loadPlanForClip(const au::trackedit::ClipKey& clipKey);
     void loadPlanForJob(const QString& jobId);
     QString jobIdForClip(const au::trackedit::ClipKey& clipKey) const;
