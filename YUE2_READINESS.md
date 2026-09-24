@@ -3,6 +3,8 @@
 **Checked:** 2026-09-15  
 **Status:** the official full-precision runtime is blocked on this workstation. The separate ComfyUI BF16 cover workflow is retained only as R&D feasibility evidence; it is not an integration target or runtime dependency.
 
+> Native `yue2-native` provider capabilities and limits (engine options, score editing, replay constraints): [docs/yue2-provider-capabilities.md](docs/yue2-provider-capabilities.md).
+
 ## Pinned official sources
 
 | Component | Official source | Revision checked |
