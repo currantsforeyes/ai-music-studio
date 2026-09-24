@@ -1181,6 +1181,15 @@ void AIStudioController::loadPlanForJob(const QString& jobId)
     }
     m_planDraft = plan;
     m_planDraftLoaded = true;
+    m_planDraftSeed.clear();
+    QFile requestFile(QDir(m_activeWorkspace).filePath(QStringLiteral("jobs/%1/request.json").arg(jobId)));
+    if (requestFile.open(QIODevice::ReadOnly)) {
+        const QJsonObject parameters
+            = QJsonDocument::fromJson(requestFile.readAll()).object().value(QStringLiteral("parameters")).toObject();
+        if (parameters.contains(QStringLiteral("seed"))) {
+            m_planDraftSeed = QString::number(parameters.value(QStringLiteral("seed")).toInt());
+        }
+    }
     pushPlanDetail();
     AIStudioStatusModel::instance()->setWorkspaceStatus(
         QObject::tr("Song plan for the selected clip — %1 sections").arg(plan.sections.size()));
@@ -1267,6 +1276,7 @@ void AIStudioController::submitYue2Job(const QString& lyrics, const QString& sty
         seedValue = static_cast<int>(QRandomGenerator::global()->generate() & 0x7fffffff);
     }
     parameters.insert("seed", seedValue);
+    AIStudioStatusModel::instance()->updateCurrentSeed(QString::number(seedValue));
     if (!title.trimmed().isEmpty()) {
         parameters.insert("title", title);
     }
@@ -1389,6 +1399,7 @@ void AIStudioController::pushPlanDetail()
         { "key", m_planDraft.key },
         { "timeSignature", m_planDraft.timeSignature },
         { "sourceFormat", m_planDraft.sourceFormat },
+        { "seed", m_planDraftSeed },
         { "sections", sections },
         { "chords", chords },
         { "melody", melody }

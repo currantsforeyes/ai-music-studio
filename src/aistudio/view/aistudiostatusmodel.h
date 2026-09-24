@@ -28,6 +28,7 @@ class AIStudioStatusModel final : public QObject
     Q_PROPERTY(QString reuseLyrics READ reuseLyrics NOTIFY promptReuseChanged)
     Q_PROPERTY(QString reuseTitle READ reuseTitle NOTIFY promptReuseChanged)
     Q_PROPERTY(QString reuseSeed READ reuseSeed NOTIFY promptReuseChanged)
+    Q_PROPERTY(QString currentSeed READ currentSeed NOTIFY currentSeedChanged)
 
 public:
     static AIStudioStatusModel* instance();
@@ -48,6 +49,7 @@ public:
     QString reuseLyrics() const;
     QString reuseTitle() const;
     QString reuseSeed() const;
+    QString currentSeed() const;
     void setRuntimeStatus(const QString& status);
     void setWorkspaceStatus(const QString& status);
     void setLibraryAssets(const QVariantList& assets);
@@ -61,6 +63,7 @@ public:
     void updateModelModelPath(const QString& path);
     void setModelConfigured(bool configured);
     void setPromptReuse(const QString& style, const QString& lyrics, const QString& title, const QString& seed);
+    void updateCurrentSeed(const QString& seed);
 
     Q_INVOKABLE void enableProjectWorkspace();
     Q_INVOKABLE void setModelCliPath(const QString& path);
@@ -136,6 +139,7 @@ signals:
     void jobInsertRequested(const QString& jobId);
     void yue2JobRequested(const QString& lyrics, const QString& style, const QString& seed, const QString& title);
     void promptReuseChanged();
+    void currentSeedChanged();
     void plansChanged();
     void plansRefreshRequested();
     void planCreateRequested(const QString& name);
@@ -168,5 +172,6 @@ private:
     QString m_reuseLyrics;
     QString m_reuseTitle;
     QString m_reuseSeed;
+    QString m_currentSeed;
 };
 }

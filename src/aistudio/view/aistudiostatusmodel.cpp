@@ -101,6 +101,11 @@ QString AIStudioStatusModel::reuseSeed() const
     return m_reuseSeed;
 }
 
+QString AIStudioStatusModel::currentSeed() const
+{
+    return m_currentSeed;
+}
+
 void AIStudioStatusModel::setRuntimeStatus(const QString& status)
 {
     if (m_runtimeStatus == status) {
@@ -217,6 +222,15 @@ void AIStudioStatusModel::setPromptReuse(const QString& style, const QString& ly
     m_reuseTitle = title;
     m_reuseSeed = seed;
     emit promptReuseChanged();
+}
+
+void AIStudioStatusModel::updateCurrentSeed(const QString& seed)
+{
+    if (m_currentSeed == seed) {
+        return;
+    }
+    m_currentSeed = seed;
+    emit currentSeedChanged();
 }
 
 void AIStudioStatusModel::enableProjectWorkspace()

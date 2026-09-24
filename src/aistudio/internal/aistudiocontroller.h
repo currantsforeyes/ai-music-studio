@@ -91,6 +91,7 @@ private:
     std::shared_ptr<au::aijobs::RuntimeHostSupervisor> m_runtimeHost;
     QString m_activeWorkspace;
     au::songplan::SongPlan m_planDraft;
+    QString m_planDraftSeed;
     bool m_planDraftLoaded = false;
     // While a generation is running, a titled silent placeholder track stands in
     // for the pending output and is replaced by the real audio on completion.

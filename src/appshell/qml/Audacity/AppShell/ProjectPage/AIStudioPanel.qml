@@ -237,6 +237,9 @@ Item {
                     lyricsField.text = AIStudioStatus.reuseLyrics
                     seedField.text = AIStudioStatus.reuseSeed
                 }
+                function onCurrentSeedChanged() {
+                    seedField.text = AIStudioStatus.currentSeed
+                }
             }
 
             TextField {
@@ -435,7 +438,14 @@ Item {
                         Layout.fillWidth: true
                         elide: Text.ElideRight
                         text: AIStudioStatus.planDetail.loaded === true
-                              ? qsTrc("aistudio", "Song Plan — %1 (rev %2)").arg(AIStudioStatus.planDetail.id).arg(AIStudioStatus.planDetail.revision)
+                              ? (String(AIStudioStatus.planDetail.seed).length > 0
+                                 ? qsTrc("aistudio", "Song Plan — %1 (rev %2) · seed %3")
+                                       .arg(AIStudioStatus.planDetail.id)
+                                       .arg(AIStudioStatus.planDetail.revision)
+                                       .arg(AIStudioStatus.planDetail.seed)
+                                 : qsTrc("aistudio", "Song Plan — %1 (rev %2)")
+                                       .arg(AIStudioStatus.planDetail.id)
+                                       .arg(AIStudioStatus.planDetail.revision))
                               : qsTrc("aistudio", "Song Plan")
                         font: ui.theme.headerBoldFont
                     }
