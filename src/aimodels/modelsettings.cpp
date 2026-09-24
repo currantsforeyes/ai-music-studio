@@ -242,6 +242,28 @@ Yue2CppConfig ModelSettings::detectYue2CppAt(const QString& baseDir)
             break;
         }
     }
+    const QStringList planCandidates {
+        base.filePath(QStringLiteral("resources/yue2-cpp/yue-plan.exe")),
+        base.filePath(QStringLiteral("yue-plan.exe")),
+        base.filePath(QStringLiteral("build/yue-plan.exe"))
+    };
+    for (const QString& candidate : planCandidates) {
+        if (QFileInfo::exists(candidate)) {
+            config.planToolPath = QDir::cleanPath(candidate);
+            break;
+        }
+    }
+    const QStringList transcribeCandidates {
+        base.filePath(QStringLiteral("resources/yue2-cpp/yue-transcribe.exe")),
+        base.filePath(QStringLiteral("yue-transcribe.exe")),
+        base.filePath(QStringLiteral("build/yue-transcribe.exe"))
+    };
+    for (const QString& candidate : transcribeCandidates) {
+        if (QFileInfo::exists(candidate)) {
+            config.transcribeToolPath = QDir::cleanPath(candidate);
+            break;
+        }
+    }
     const QStringList modelDirs {
         base.filePath(QStringLiteral("data/models/yue2-cpp")),
         base.filePath(QStringLiteral("models"))
@@ -306,9 +328,33 @@ Yue2CppConfig ModelSettings::yue2Cpp()
     config.backbonePath = object.value(QStringLiteral("backbonePath")).toString();
     config.vaePath = object.value(QStringLiteral("vaePath")).toString();
     config.transcriberPath = object.value(QStringLiteral("transcriberPath")).toString();
+    config.planToolPath = object.value(QStringLiteral("planToolPath")).toString();
+    config.transcribeToolPath = object.value(QStringLiteral("transcribeToolPath")).toString();
     config.host = object.value(QStringLiteral("host")).toString(config.host);
     config.port = object.value(QStringLiteral("port")).toInt(config.port);
     config.ggmlBackend = object.value(QStringLiteral("ggmlBackend")).toString();
+    if (config.planToolPath.isEmpty()) {
+        const QString planOverride = qEnvironmentVariable("YUE2CPP_PLAN_TOOL");
+        if (!planOverride.isEmpty()) {
+            config.planToolPath = planOverride;
+        } else if (!config.enginePath.isEmpty()) {
+            const QString sibling = QFileInfo(config.enginePath).dir().filePath(QStringLiteral("yue-plan.exe"));
+            if (QFileInfo::exists(sibling)) {
+                config.planToolPath = sibling;
+            }
+        }
+    }
+    if (config.transcribeToolPath.isEmpty()) {
+        const QString transcribeOverride = qEnvironmentVariable("YUE2CPP_TRANSCRIBE_TOOL");
+        if (!transcribeOverride.isEmpty()) {
+            config.transcribeToolPath = transcribeOverride;
+        } else if (!config.enginePath.isEmpty()) {
+            const QString sibling = QFileInfo(config.enginePath).dir().filePath(QStringLiteral("yue-transcribe.exe"));
+            if (QFileInfo::exists(sibling)) {
+                config.transcribeToolPath = sibling;
+            }
+        }
+    }
     if (!config.isConfigured()) {
         const Yue2CppConfig detected = detectYue2Cpp();
         if (detected.isConfigured()) {
@@ -326,6 +372,8 @@ bool ModelSettings::setYue2Cpp(const Yue2CppConfig& config, QString* errorMessag
     object.insert(QStringLiteral("backbonePath"), config.backbonePath);
     object.insert(QStringLiteral("vaePath"), config.vaePath);
     object.insert(QStringLiteral("transcriberPath"), config.transcriberPath);
+    object.insert(QStringLiteral("planToolPath"), config.planToolPath);
+    object.insert(QStringLiteral("transcribeToolPath"), config.transcribeToolPath);
     object.insert(QStringLiteral("host"), config.host);
     object.insert(QStringLiteral("port"), config.port);
     object.insert(QStringLiteral("ggmlBackend"), config.ggmlBackend);

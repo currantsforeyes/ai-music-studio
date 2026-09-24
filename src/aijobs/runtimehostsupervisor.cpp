@@ -156,6 +156,12 @@ void RuntimeHostSupervisor::start()
         if (!m_yue2CppTranscriber.isEmpty()) {
             arguments << "--yue2cpp-transcriber" << m_yue2CppTranscriber;
         }
+        if (!m_yue2CppPlanTool.isEmpty()) {
+            arguments << "--yue2cpp-plan-tool" << m_yue2CppPlanTool;
+        }
+        if (!m_yue2CppTranscribeTool.isEmpty()) {
+            arguments << "--yue2cpp-transcribe-tool" << m_yue2CppTranscribeTool;
+        }
         if (!m_yue2CppHost.isEmpty()) {
             arguments << "--yue2cpp-host" << m_yue2CppHost;
         }
@@ -179,12 +185,15 @@ void RuntimeHostSupervisor::setProviderConfig(const QString& yue2Cli, const QStr
 }
 
 void RuntimeHostSupervisor::setYue2CppConfig(const QString& engine, const QString& backbone, const QString& vae,
-                                             const QString& transcriber, const QString& host, int port, const QString& backend)
+                                             const QString& transcriber, const QString& planTool, const QString& transcribeTool,
+                                             const QString& host, int port, const QString& backend)
 {
     m_yue2CppEngine = engine;
     m_yue2CppBackbone = backbone;
     m_yue2CppVae = vae;
     m_yue2CppTranscriber = transcriber;
+    m_yue2CppPlanTool = planTool;
+    m_yue2CppTranscribeTool = transcribeTool;
     m_yue2CppHost = host;
     m_yue2CppPort = port;
     m_yue2CppBackend = backend;

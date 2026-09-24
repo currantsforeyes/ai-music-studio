@@ -20,6 +20,8 @@ struct Yue2CppOptions {
     QString backbone;
     QString vae;
     QString transcriber;
+    QString planTool;
+    QString transcribeTool;
     QString host = QStringLiteral("127.0.0.1");
     int port = 18087;
     QString backend;
@@ -40,6 +42,8 @@ public:
     ~Yue2CppRunner() override;
 
     bool generate(const QByteArray& requestJson, const QString& jobDirectory, const Progress& progress, QString* errorMessage);
+    //! Runs the yue-plan tool: request -> ABC score, no audio.
+    bool composeScore(const QByteArray& requestJson, const QString& jobDirectory, QString* errorMessage);
     void stopServer();
 
 private:

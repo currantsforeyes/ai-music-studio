@@ -473,6 +473,14 @@ Item {
                                                      root.scoreMode, durationField.text, stepsField.text, guidanceField.text, root.samplingMap())
             }
 
+            FlatButton {
+                Layout.alignment: Qt.AlignHCenter
+                text: qsTrc("aistudio", "Compose score only")
+                enabled: root.selectedModel === "yue2-cpp" && lyricsField.text.trim().length > 0
+                onClicked: AIStudioStatus.runYue2Job("yue2-cpp-plan", lyricsField.text, styleField.text, seedField.text, titleField.text,
+                                                     root.scoreMode, durationField.text, stepsField.text, guidanceField.text, root.samplingMap())
+            }
+
             
             }
 

@@ -31,6 +31,8 @@ struct Yue2CppConfig {
     QString backbonePath;
     QString vaePath;
     QString transcriberPath;
+    QString planToolPath;
+    QString transcribeToolPath;
     QString host = QStringLiteral("127.0.0.1");
     int port = 18087;
     QString ggmlBackend;

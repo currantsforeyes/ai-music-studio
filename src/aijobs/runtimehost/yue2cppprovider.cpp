@@ -266,6 +266,53 @@ bool Yue2CppRunner::ensureServer(QString* errorMessage)
     return true;
 }
 
+bool Yue2CppRunner::composeScore(const QByteArray& requestJson, const QString& jobDirectory, QString* errorMessage)
+{
+    if (m_options.planTool.isEmpty()) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("yue-plan is not configured (set the yue2.cpp plan tool path)");
+        }
+        return false;
+    }
+    QDir().mkpath(jobDirectory);
+    const QString requestPath = QDir(jobDirectory).filePath(QStringLiteral("plan-request.json"));
+    QFile requestFile(requestPath);
+    if (!requestFile.open(QIODevice::WriteOnly | QIODevice::Truncate) || requestFile.write(requestJson) < 1) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Could not write the plan request");
+        }
+        return false;
+    }
+    requestFile.close();
+
+    const QString scorePath = QDir(jobDirectory).filePath(QStringLiteral("score.abc"));
+    QProcess process;
+    process.setWorkingDirectory(QFileInfo(m_options.planTool).absolutePath());
+    process.setProcessChannelMode(QProcess::MergedChannels);
+    process.start(m_options.planTool, QStringList {
+        QStringLiteral("--model"), m_options.backbone,
+        QStringLiteral("--request"), requestPath,
+        QStringLiteral("--out"), scorePath
+    });
+    if (!process.waitForStarted(10000)) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Could not start yue-plan: %1").arg(m_options.planTool);
+        }
+        return false;
+    }
+    process.waitForFinished(60 * 60 * 1000);
+    if (process.exitCode() != 0 || !QFileInfo::exists(scorePath)) {
+        if (errorMessage) {
+            *errorMessage = QString::fromUtf8(process.readAllStandardOutput()).trimmed();
+            if (errorMessage->isEmpty()) {
+                *errorMessage = QStringLiteral("yue-plan failed");
+            }
+        }
+        return false;
+    }
+    return true;
+}
+
 bool Yue2CppRunner::generate(const QByteArray& requestJson, const QString& jobDirectory, const Progress& progress, QString* errorMessage)
 {
     if (!ensureServer(errorMessage)) {

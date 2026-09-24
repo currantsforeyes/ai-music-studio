@@ -32,7 +32,8 @@ public:
     void setProviderConfig(const QString& yue2Cli, const QString& yue2Model, const QString& yue2Threads);
     //! Configure the yue2.cpp engine (yue-server and its model files).
     void setYue2CppConfig(const QString& engine, const QString& backbone, const QString& vae,
-                          const QString& transcriber, const QString& host, int port, const QString& backend);
+                          const QString& transcriber, const QString& planTool, const QString& transcribeTool,
+                          const QString& host, int port, const QString& backend);
     void submitTestJob();
     void submitFailureTest();
     QString statusText() const;
@@ -74,6 +75,8 @@ private:
     QString m_yue2CppBackbone;
     QString m_yue2CppVae;
     QString m_yue2CppTranscriber;
+    QString m_yue2CppPlanTool;
+    QString m_yue2CppTranscribeTool;
     QString m_yue2CppHost;
     int m_yue2CppPort = 18087;
     QString m_yue2CppBackend;

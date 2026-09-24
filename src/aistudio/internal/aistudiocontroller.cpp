@@ -982,11 +982,18 @@ void AIStudioController::recordJobStatus(const au::aicore::JobStatus& status)
         if (status.state == au::aicore::JobState::Complete) {
             registerJobArtifacts(jobId, QString::fromStdString(status.resultManifest));
             removeJobPlaceholder(jobId);
+            if (QString::fromStdString(status.providerId) == QLatin1String("yue2-cpp-plan")) {
+                // A score-only job: show its plan straight away for editing.
+                loadPlanForJob(jobId);
+            }
             // Generations are placed on the timeline automatically, so there is
             // no separate "insert" step for the user to perform.
             QString insertError;
             bool inserted = false;
-            if (au::aijobs::JobStore::isInserted(m_activeWorkspace, jobId, &inserted, &insertError) && !inserted) {
+            const bool hasOutput
+                = !au::aijobs::JobStore::resultAssetPath(m_activeWorkspace, jobId, &insertError).isEmpty();
+            if (hasOutput
+                && au::aijobs::JobStore::isInserted(m_activeWorkspace, jobId, &inserted, &insertError) && !inserted) {
                 insertJobOutput(jobId);
             }
         } else if (terminal) {
@@ -1386,6 +1393,7 @@ void AIStudioController::applyModelSettings()
 
     const au::aimodels::Yue2CppConfig yue2cpp = au::aimodels::ModelSettings::yue2Cpp();
     m_runtimeHost->setYue2CppConfig(yue2cpp.enginePath, yue2cpp.backbonePath, yue2cpp.vaePath, yue2cpp.transcriberPath,
+                                    yue2cpp.planToolPath, yue2cpp.transcribeToolPath,
                                     yue2cpp.host, yue2cpp.port, yue2cpp.ggmlBackend);
     AIStudioStatusModel::instance()->setModelYue2CppStatus(
         yue2cpp.isConfigured()
@@ -1465,7 +1473,7 @@ void AIStudioController::submitYue2Job(const QString& providerId, const QString&
 
     const QString effectiveProvider = providerId.trimmed().isEmpty() ? QStringLiteral("yue2-native") : providerId.trimmed();
     QJsonObject parameters;
-    if (effectiveProvider == QLatin1String("yue2-cpp")) {
+    if (effectiveProvider.startsWith(QLatin1String("yue2-cpp"))) {
         // The yue2.cpp server takes its own Yue2Request JSON.
         parameters.insert(QStringLiteral("style"), style);
         parameters.insert(QStringLiteral("lyrics"), lyrics);

@@ -226,6 +226,8 @@ private:
             startYue2Job(socket, request);
         } else if (providerId == "yue2-cpp") {
             startYue2CppJob(socket, request);
+        } else if (providerId == "yue2-cpp-plan") {
+            startYue2CppPlanJob(socket, request);
         } else {
             socket->write(response(false, "unknown-provider", { { "providerId", providerId } }));
         }
@@ -339,6 +341,74 @@ private:
             }
         }
         return path;
+    }
+
+    void startYue2CppPlanJob(QTcpSocket* socket, const QJsonObject& request)
+    {
+        if (!m_activeJobId.isEmpty()) {
+            socket->write(response(false, "job-already-running", { { "jobId", m_activeJobId } }));
+            return;
+        }
+        if (!m_yue2Cpp) {
+            socket->write(response(false, "provider-unavailable",
+                                  { { "message", "The yue2.cpp engine is not configured" } }));
+            return;
+        }
+        const QByteArray parameters = request.value("parameters").toString().toUtf8();
+        const QString jobId = QStringLiteral("yue2plan-") + QUuid::createUuid().toString(QUuid::WithoutBraces);
+        const QString jobDirectory = QDir(m_workspace).filePath(QStringLiteral("jobs/") + jobId);
+        if (!QDir().mkpath(jobDirectory)) {
+            socket->write(response(false, "workspace-create-failed", { { "jobId", jobId } }));
+            return;
+        }
+        m_activeJobId = jobId;
+        m_activeJobSocket = socket;
+        m_providerOutputPath.clear();
+        socket->write(response(true, "accepted", { { "jobId", jobId }, { "state", "running" } }));
+        hostLog(QStringLiteral("yue2cpp plan job accepted id=%1").arg(jobId));
+        sendProgressValue(jobId, 0.1, QStringLiteral("Composing the score"));
+
+        QString error;
+        const bool ok = m_yue2Cpp->composeScore(parameters, jobDirectory, &error);
+        finishYue2CppPlanJob(jobId, jobDirectory, ok, error);
+    }
+
+    void finishYue2CppPlanJob(const QString& jobId, const QString& jobDirectory, bool ok, const QString& error)
+    {
+        QTcpSocket* socket = m_activeJobSocket;
+        m_activeJobId.clear();
+        m_activeJobSocket = nullptr;
+        m_providerOutputPath.clear();
+        m_cancelled = false;
+        if (!socket) {
+            return;
+        }
+        if (ok) {
+            QJsonArray artifacts;
+            artifacts.append(QJsonObject {
+                { "id", "score" },
+                { "path", QDir(m_workspace).relativeFilePath(QDir(jobDirectory).filePath(QStringLiteral("score.abc"))) }
+            });
+            const QJsonObject manifest {
+                { "protocolVersion", ProtocolVersion },
+                { "jobId", jobId },
+                { "providerId", "yue2-cpp-plan" },
+                { "state", "complete" },
+                { "artifacts", artifacts }
+            };
+            QFile manifestFile(QDir(jobDirectory).filePath(QStringLiteral("result.json")));
+            if (!manifestFile.open(QIODevice::WriteOnly | QIODevice::Truncate)
+                || manifestFile.write(QJsonDocument(manifest).toJson(QJsonDocument::Compact)) < 1) {
+                socket->write(response(false, "manifest-write-failed", { { "jobId", jobId } }));
+                return;
+            }
+            hostLog(QStringLiteral("yue2cpp plan complete id=%1").arg(jobId));
+            socket->write(response(true, "complete",
+                                  { { "jobId", jobId }, { "resultManifest", "jobs/" + jobId + "/result.json" } }));
+        } else {
+            hostLog(QStringLiteral("yue2cpp plan failed id=%1 error=%2").arg(jobId, error));
+            socket->write(response(false, "failed", { { "jobId", jobId }, { "errorMessage", error } }));
+        }
     }
 
     void startYue2CppJob(QTcpSocket* socket, const QJsonObject& request)
@@ -759,6 +829,8 @@ int main(int argc, char* argv[])
     parser.addOption({ "yue2cpp-backbone", "Path to the YuE2 backbone GGUF (yue2.cpp).", "path" });
     parser.addOption({ "yue2cpp-vae", "Path to the YuE2 VAE GGUF (yue2.cpp).", "path" });
     parser.addOption({ "yue2cpp-transcriber", "Optional SheetSage2 GGUF for covers (yue2.cpp).", "path" });
+    parser.addOption({ "yue2cpp-plan-tool", "Path to yue2.cpp's yue-plan executable (score only).", "path" });
+    parser.addOption({ "yue2cpp-transcribe-tool", "Path to yue2.cpp's yue-transcribe executable (covers).", "path" });
     parser.addOption({ "yue2cpp-host", "yue-server listen host.", "addr", "127.0.0.1" });
     parser.addOption({ "yue2cpp-port", "yue-server listen port.", "n", "18087" });
     parser.addOption({ "yue2cpp-backend", "ggml backend device (CUDA0, Vulkan0, CPU; empty = auto).", "name" });
@@ -796,6 +868,8 @@ int main(int argc, char* argv[])
                          parser.value("yue2cpp-backbone"),
                          parser.value("yue2cpp-vae"),
                          parser.value("yue2cpp-transcriber"),
+                         parser.value("yue2cpp-plan-tool"),
+                         parser.value("yue2cpp-transcribe-tool"),
                          parser.value("yue2cpp-host"),
                          parser.value("yue2cpp-port").toInt(),
                          parser.value("yue2cpp-backend")
