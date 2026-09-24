@@ -37,6 +37,7 @@ using namespace muse;
 using namespace muse::actions;
 
 static const ActionCode OPEN_JOBS_CODE("ai.openJobs");
+static const ActionCode REUSE_PROMPT_CODE("ai.reusePrompt");
 static const QString AI_STUDIO_DOCK("aiStudioPanel");
 
 namespace {
@@ -173,8 +174,9 @@ void AIStudioController::init()
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::jobInsertRequested,
                      m_runtimeHost.get(), [this](const QString& jobId) { insertJobOutput(jobId); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::yue2JobRequested,
-                     m_runtimeHost.get(), [this](const QString& lyrics, const QString& style) {
-        submitYue2Job(lyrics, style);
+                     m_runtimeHost.get(), [this](const QString& lyrics, const QString& style,
+                                                 const QString& seed, const QString& title) {
+        submitYue2Job(lyrics, style, seed, title);
     });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::plansRefreshRequested,
                      m_runtimeHost.get(), [this] { refreshPlans(); });
@@ -207,11 +209,17 @@ void AIStudioController::init()
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::planSaveRequested,
                      m_runtimeHost.get(), [this] { savePlanRevision(); });
     dispatcher()->reg(this, OPEN_JOBS_CODE, this, &AIStudioController::openJobs);
+    dispatcher()->reg(this, REUSE_PROMPT_CODE, [this](const muse::actions::ActionData& args) {
+        if (args.count() < 1) {
+            return;
+        }
+        reusePromptForTrack(args.arg<au::trackedit::ClipKey>(0).trackId);
+    });
 }
 
 bool AIStudioController::canReceiveAction(const ActionCode& code) const
 {
-    return code == OPEN_JOBS_CODE;
+    return code == OPEN_JOBS_CODE || code == REUSE_PROMPT_CODE;
 }
 
 void AIStudioController::openJobs()
@@ -1003,6 +1011,18 @@ void AIStudioController::retryJob(const QString& jobId)
     AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Retrying provider job"));
 }
 
+namespace {
+QString savedRequestField(const QString& workspace, const QString& jobId, const QString& field)
+{
+    QFile file(QDir(workspace).filePath(QStringLiteral("jobs/%1/request.json").arg(jobId)));
+    if (!file.open(QIODevice::ReadOnly)) {
+        return {};
+    }
+    const QJsonObject root = QJsonDocument::fromJson(file.readAll()).object();
+    return root.value(QStringLiteral("parameters")).toObject().value(field).toString();
+}
+}
+
 void AIStudioController::insertJobOutput(const QString& jobId)
 {
     if (m_activeWorkspace.isEmpty()) {
@@ -1020,16 +1040,75 @@ void AIStudioController::insertJobOutput(const QString& jobId)
         AIStudioStatusModel::instance()->setWorkspaceStatus(error);
         return;
     }
+
+    const au::trackedit::ITrackeditProjectPtr trackProject = project->trackeditProject();
+    std::vector<au::trackedit::TrackId> before;
+    if (trackProject) {
+        before = trackProject->trackIdList();
+    }
+
     if (!project->import(muse::io::path_t(assetPath), false)) {
         AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Could not insert the provider output"));
         return;
     }
+
+    // Link the freshly imported track to the job so its prompt can be reused,
+    // and name it after the saved song title when one was provided.
+    if (trackProject) {
+        const std::vector<au::trackedit::TrackId> after = trackProject->trackIdList();
+        for (const au::trackedit::TrackId& trackId : after) {
+            if (std::find(before.begin(), before.end(), trackId) != before.end()) {
+                continue;
+            }
+            const QString title = savedRequestField(m_activeWorkspace, jobId, QStringLiteral("title"));
+            if (!title.isEmpty() && tracks()) {
+                tracks()->changeTrackTitle(trackId, muse::String::fromQString(title));
+            }
+            au::aijobs::JobStore::setTrackJob(m_activeWorkspace, trackId, jobId);
+            break;
+        }
+    }
+
     if (au::aijobs::JobStore::markInserted(m_activeWorkspace, jobId, &error)) {
         AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Provider output inserted as a new track"));
         refreshJobs();
     } else {
         AIStudioStatusModel::instance()->setWorkspaceStatus(error);
     }
+}
+
+void AIStudioController::reusePromptForTrack(au::trackedit::TrackId trackId)
+{
+    if (m_activeWorkspace.isEmpty()) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(
+            QObject::tr("Save the project and open AI Studio before reusing a prompt"));
+        return;
+    }
+    const QString jobId = au::aijobs::JobStore::jobForTrack(m_activeWorkspace, trackId);
+    if (jobId.isEmpty()) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(
+            QObject::tr("No saved prompt is linked to this clip"));
+        return;
+    }
+    QFile file(QDir(m_activeWorkspace).filePath(QStringLiteral("jobs/%1/request.json").arg(jobId)));
+    if (!file.open(QIODevice::ReadOnly)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(
+            QObject::tr("Could not read the saved prompt for this clip"));
+        return;
+    }
+    const QJsonObject parameters
+        = QJsonDocument::fromJson(file.readAll()).object().value(QStringLiteral("parameters")).toObject();
+    const QString seed = parameters.contains(QStringLiteral("seed"))
+                         ? QString::number(parameters.value(QStringLiteral("seed")).toInt())
+                         : QString();
+    AIStudioStatusModel::instance()->setPromptReuse(
+        parameters.value(QStringLiteral("style")).toString(),
+        parameters.value(QStringLiteral("text")).toString(),
+        parameters.value(QStringLiteral("title")).toString(),
+        seed);
+    dispatcher()->dispatch("dock-set-open", ActionData::make_arg2<QString, bool>(AI_STUDIO_DOCK, true));
+    AIStudioStatusModel::instance()->setWorkspaceStatus(
+        QObject::tr("Loaded the saved prompt — adjust and generate again"));
 }
 
 void AIStudioController::applyModelSettings()
@@ -1078,7 +1157,8 @@ void AIStudioController::setModelModelPath(const QString& path)
     AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Saved the YuE2 model folder"));
 }
 
-void AIStudioController::submitYue2Job(const QString& lyrics, const QString& style)
+void AIStudioController::submitYue2Job(const QString& lyrics, const QString& style,
+                                       const QString& seed, const QString& title)
 {
     if (m_activeWorkspace.isEmpty()) {
         AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Enable the project AI workspace before generating a song"));
@@ -1087,6 +1167,14 @@ void AIStudioController::submitYue2Job(const QString& lyrics, const QString& sty
     QJsonObject parameters { { "text", lyrics } };
     if (!style.trimmed().isEmpty()) {
         parameters.insert("style", style);
+    }
+    bool seedOk = false;
+    const int seedValue = seed.trimmed().toInt(&seedOk);
+    if (seedOk) {
+        parameters.insert("seed", seedValue);
+    }
+    if (!title.trimmed().isEmpty()) {
+        parameters.insert("title", title);
     }
     const au::aicore::JobRequest request {
         "yue2-native",

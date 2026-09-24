@@ -317,3 +317,30 @@ QList<JobStore::JobArtifact> JobStore::resultArtifacts(const QString& workspaceP
     }
     return {};
 }
+
+bool JobStore::setTrackJob(const QString& workspacePath, qint64 trackId, const QString& jobId, QString* errorMessage)
+{
+    if (workspacePath.isEmpty() || trackId < 0 || jobId.isEmpty()) {
+        if (errorMessage) {
+            *errorMessage = QObject::tr("A workspace, track and job are required to link a generated track");
+        }
+        return false;
+    }
+    QJsonObject root;
+    if (!readManifest(workspacePath, &root, errorMessage)) {
+        return false;
+    }
+    QJsonObject trackJobs = root.value("trackJobs").toObject();
+    trackJobs.insert(QString::number(trackId), jobId);
+    root.insert("trackJobs", trackJobs);
+    return saveManifest(workspacePath, root, errorMessage);
+}
+
+QString JobStore::jobForTrack(const QString& workspacePath, qint64 trackId)
+{
+    QJsonObject root;
+    if (!readManifest(workspacePath, &root, nullptr)) {
+        return {};
+    }
+    return root.value("trackJobs").toObject().value(QString::number(trackId)).toString();
+}

@@ -354,6 +354,28 @@ private:
         }
         const QString outputPath = QDir(jobDirectory).filePath("output.wav");
 
+        // Persist the request so the prompt, lyrics, seed and title can be
+        // reused later (e.g. "Reuse Prompt" from the timeline).
+        QJsonObject requestParameters;
+        const QJsonDocument requestParametersDocument
+            = QJsonDocument::fromJson(request.value("parameters").toString().toUtf8());
+        if (requestParametersDocument.isObject()) {
+            requestParameters = requestParametersDocument.object();
+        }
+        QJsonObject requestRecord {
+            { "jobId", jobId },
+            { "providerId", "yue2-native" },
+            { "requestedAt", QDateTime::currentDateTimeUtc().toString(Qt::ISODate) },
+            { "parameters", requestParameters }
+        };
+        QFile requestFile(QDir(jobDirectory).filePath(QStringLiteral("request.json")));
+        if (requestFile.open(QIODevice::WriteOnly)) {
+            requestFile.write(QJsonDocument(requestRecord).toJson(QJsonDocument::Indented));
+            requestFile.close();
+        } else {
+            hostLog(QStringLiteral("could not persist request.json for %1").arg(jobId));
+        }
+
         m_activeJobId = jobId;
         m_activeJobSocket = socket;
         m_providerOutputPath = outputPath;

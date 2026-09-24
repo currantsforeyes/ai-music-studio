@@ -30,6 +30,12 @@ public:
     static bool isInserted(const QString& workspacePath, const QString& jobId, bool* inserted,
                            QString* errorMessage = nullptr);
 
+    // Associates the timeline track created from a completed job with that job,
+    // so the generation's request (prompt/lyrics/seed/title) can be reused.
+    static bool setTrackJob(const QString& workspacePath, qint64 trackId, const QString& jobId,
+                            QString* errorMessage = nullptr);
+    static QString jobForTrack(const QString& workspacePath, qint64 trackId);
+
     // Absolute path of a completed job's audio asset, or empty with a reason in
     // errorMessage when the job is incomplete, already inserted, or missing.
     static QString resultAssetPath(const QString& workspacePath, const QString& jobId,

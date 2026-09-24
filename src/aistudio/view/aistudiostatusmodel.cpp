@@ -81,6 +81,26 @@ bool AIStudioStatusModel::modelConfigured() const
     return m_modelConfigured;
 }
 
+QString AIStudioStatusModel::reuseStyle() const
+{
+    return m_reuseStyle;
+}
+
+QString AIStudioStatusModel::reuseLyrics() const
+{
+    return m_reuseLyrics;
+}
+
+QString AIStudioStatusModel::reuseTitle() const
+{
+    return m_reuseTitle;
+}
+
+QString AIStudioStatusModel::reuseSeed() const
+{
+    return m_reuseSeed;
+}
+
 void AIStudioStatusModel::setRuntimeStatus(const QString& status)
 {
     if (m_runtimeStatus == status) {
@@ -187,6 +207,16 @@ void AIStudioStatusModel::setModelConfigured(bool configured)
     }
     m_modelConfigured = configured;
     emit modelPathsChanged();
+}
+
+void AIStudioStatusModel::setPromptReuse(const QString& style, const QString& lyrics,
+                                         const QString& title, const QString& seed)
+{
+    m_reuseStyle = style;
+    m_reuseLyrics = lyrics;
+    m_reuseTitle = title;
+    m_reuseSeed = seed;
+    emit promptReuseChanged();
 }
 
 void AIStudioStatusModel::enableProjectWorkspace()
@@ -354,10 +384,11 @@ void AIStudioStatusModel::insertJobOutput(const QString& jobId)
     }
 }
 
-void AIStudioStatusModel::runYue2Job(const QString& lyrics, const QString& style)
+void AIStudioStatusModel::runYue2Job(const QString& lyrics, const QString& style,
+                                     const QString& seed, const QString& title)
 {
     if (!lyrics.trimmed().isEmpty()) {
-        emit yue2JobRequested(lyrics, style);
+        emit yue2JobRequested(lyrics, style, seed, title);
     }
 }
 

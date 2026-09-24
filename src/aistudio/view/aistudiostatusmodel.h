@@ -24,6 +24,10 @@ class AIStudioStatusModel final : public QObject
     Q_PROPERTY(QString modelCliPath READ modelCliPath NOTIFY modelPathsChanged)
     Q_PROPERTY(QString modelModelPath READ modelModelPath NOTIFY modelPathsChanged)
     Q_PROPERTY(bool modelConfigured READ modelConfigured NOTIFY modelPathsChanged)
+    Q_PROPERTY(QString reuseStyle READ reuseStyle NOTIFY promptReuseChanged)
+    Q_PROPERTY(QString reuseLyrics READ reuseLyrics NOTIFY promptReuseChanged)
+    Q_PROPERTY(QString reuseTitle READ reuseTitle NOTIFY promptReuseChanged)
+    Q_PROPERTY(QString reuseSeed READ reuseSeed NOTIFY promptReuseChanged)
 
 public:
     static AIStudioStatusModel* instance();
@@ -40,6 +44,10 @@ public:
     QString modelCliPath() const;
     QString modelModelPath() const;
     bool modelConfigured() const;
+    QString reuseStyle() const;
+    QString reuseLyrics() const;
+    QString reuseTitle() const;
+    QString reuseSeed() const;
     void setRuntimeStatus(const QString& status);
     void setWorkspaceStatus(const QString& status);
     void setLibraryAssets(const QVariantList& assets);
@@ -52,6 +60,7 @@ public:
     void updateModelCliPath(const QString& path);
     void updateModelModelPath(const QString& path);
     void setModelConfigured(bool configured);
+    void setPromptReuse(const QString& style, const QString& lyrics, const QString& title, const QString& seed);
 
     Q_INVOKABLE void enableProjectWorkspace();
     Q_INVOKABLE void setModelCliPath(const QString& path);
@@ -78,7 +87,7 @@ public:
     Q_INVOKABLE void cancelJob(const QString& jobId);
     Q_INVOKABLE void retryJob(const QString& jobId);
     Q_INVOKABLE void insertJobOutput(const QString& jobId);
-    Q_INVOKABLE void runYue2Job(const QString& lyrics, const QString& style);
+    Q_INVOKABLE void runYue2Job(const QString& lyrics, const QString& style, const QString& seed, const QString& title);
     Q_INVOKABLE void refreshPlans();
     Q_INVOKABLE void createPlan(const QString& name);
     Q_INVOKABLE void loadPlan(const QString& planId);
@@ -125,7 +134,8 @@ signals:
     void jobCancelRequested(const QString& jobId);
     void jobRetryRequested(const QString& jobId);
     void jobInsertRequested(const QString& jobId);
-    void yue2JobRequested(const QString& lyrics, const QString& style);
+    void yue2JobRequested(const QString& lyrics, const QString& style, const QString& seed, const QString& title);
+    void promptReuseChanged();
     void plansChanged();
     void plansRefreshRequested();
     void planCreateRequested(const QString& name);
@@ -154,5 +164,9 @@ private:
     QString m_modelCliPath;
     QString m_modelModelPath;
     bool m_modelConfigured = false;
+    QString m_reuseStyle;
+    QString m_reuseLyrics;
+    QString m_reuseTitle;
+    QString m_reuseSeed;
 };
 }

@@ -419,6 +419,23 @@ Item {
                 font: ui.theme.bodyBoldFont
             }
 
+            // Reload a saved generation's inputs (from "Reuse Prompt").
+            Connections {
+                target: AIStudioStatus
+                function onPromptReuseChanged() {
+                    titleField.text = AIStudioStatus.reuseTitle
+                    styleField.text = AIStudioStatus.reuseStyle
+                    lyricsField.text = AIStudioStatus.reuseLyrics
+                    seedField.text = AIStudioStatus.reuseSeed
+                }
+            }
+
+            TextField {
+                id: titleField
+                Layout.fillWidth: true
+                placeholderText: qsTrc("aistudio", "Song Title")
+            }
+
             ScrollView {
                 id: styleScroll
                 Layout.fillWidth: true
@@ -473,11 +490,25 @@ Item {
                 Item { Layout.fillWidth: true }
             }
 
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                StyledTextLabel { text: qsTrc("aistudio", "Seed") }
+                TextField {
+                    id: seedField
+                    Layout.preferredWidth: 120
+                    placeholderText: qsTrc("aistudio", "Random")
+                    inputMethodHints: Qt.ImhDigitsOnly
+                }
+                Item { Layout.fillWidth: true }
+            }
+
             FlatButton {
                 Layout.alignment: Qt.AlignHCenter
                 text: qsTrc("aistudio", "Generate")
                 enabled: lyricsField.text.trim().length > 0 && AIStudioStatus.modelConfigured
-                onClicked: AIStudioStatus.runYue2Job(lyricsField.text, styleField.text)
+                onClicked: AIStudioStatus.runYue2Job(lyricsField.text, styleField.text, seedField.text, titleField.text)
             }
 
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: ui.theme.strokeColor }

@@ -16,6 +16,7 @@ using namespace muse::actions;
 static const ActionCode ENABLE_STRETCH_CODE("stretch-clip-to-match-tempo");
 static const ActionCode RENDER_PITCH_SPEED_CODE("clip-render-pitch-speed");
 static const ActionCode RESET_PITCH_SPEED_CODE("clip-reset-pitch-speed");
+static const ActionCode AI_REUSE_PROMPT_CODE("ai.reusePrompt");
 static const ActionCodeList PITCH_SPEED_CODES { RENDER_PITCH_SPEED_CODE, RESET_PITCH_SPEED_CODE };
 
 namespace {
@@ -52,6 +53,10 @@ void ClipContextMenuModel::load()
 
     auto colorItems = makeClipColourItems();
 
+    // AI: reload the generation prompt/lyrics/seed/title for this clip into the
+    // AI Studio Create panel.
+    auto reusePromptItem = makeItemWithArg(AI_REUSE_PROMPT_CODE, muse::TranslatableString("aistudio", "Reuse Prompt"));
+
     MenuItemList cutAndItems {
         makeMenuItem("cut-leave-gap",
                      muse::TranslatableString("clip", "Cut and leave gap")),
@@ -71,6 +76,8 @@ void ClipContextMenuModel::load()
     };
 
     MenuItemList items {
+        reusePromptItem,
+        makeSeparator(),
         makeItemWithArg("clip-properties"),
         makeItemWithArg("rename-item", muse::TranslatableString("clip", "Rename clip")),
         makeMenu(muse::TranslatableString("clip", "Clip color"), colorItems, "colorMenu"),

@@ -179,4 +179,26 @@ TEST(JobStoreTests, ResolvesCompletedJobArtifacts)
     EXPECT_TRUE(QFileInfo::exists(artifacts.front().path));
 }
 
+TEST(JobStoreTests, LinksTracksToJobs)
+{
+    QTemporaryDir directory;
+    ASSERT_TRUE(directory.isValid());
+    const QString projectPath = directory.filePath("jobstore.aup4");
+    ASSERT_TRUE(aiproject::WorkspaceStore::create(projectPath));
+    const QString workspace = aiproject::WorkspaceStore::workspacePathForProject(projectPath);
+
+    QString error;
+    ASSERT_TRUE(JobStore::setTrackJob(workspace, 42, "job-42", &error)) << error.toStdString();
+    EXPECT_EQ(JobStore::jobForTrack(workspace, 42), QStringLiteral("job-42"));
+    EXPECT_TRUE(JobStore::jobForTrack(workspace, 99).isEmpty());
+
+    ASSERT_TRUE(JobStore::setTrackJob(workspace, 43, "job-43", &error));
+    EXPECT_EQ(JobStore::jobForTrack(workspace, 42), QStringLiteral("job-42"));
+    EXPECT_EQ(JobStore::jobForTrack(workspace, 43), QStringLiteral("job-43"));
+
+    // A later status update must not drop the track links.
+    ASSERT_TRUE(JobStore::upsert(workspace, makeJob("job-42", aicore::JobState::Complete), &error));
+    EXPECT_EQ(JobStore::jobForTrack(workspace, 42), QStringLiteral("job-42"));
+}
+
 }

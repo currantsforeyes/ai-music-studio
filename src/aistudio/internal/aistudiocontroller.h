@@ -58,7 +58,8 @@ private:
     void cancelJob(const QString& jobId);
     void retryJob(const QString& jobId);
     void insertJobOutput(const QString& jobId);
-    void submitYue2Job(const QString& lyrics, const QString& style);
+    void submitYue2Job(const QString& lyrics, const QString& style, const QString& seed, const QString& title);
+    void reusePromptForTrack(au::trackedit::TrackId trackId);
     void applyModelSettings();
     void setModelCliPath(const QString& path);
     void setModelModelPath(const QString& path);
