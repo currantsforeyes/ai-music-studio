@@ -317,6 +317,53 @@ Item {
                 }
             }
 
+            StyledTextLabel {
+                Layout.fillWidth: true
+                text: qsTrc("aistudio", "Writing assistant")
+                font: ui.theme.bodyBoldFont
+            }
+
+            TextField {
+                id: assistantUrlField
+                Layout.fillWidth: true
+                placeholderText: qsTrc("aistudio", "Base URL (OpenAI-compatible)")
+                Component.onCompleted: text = AIStudioStatus.assistantBaseUrl
+            }
+
+            TextField {
+                id: assistantModelField
+                Layout.fillWidth: true
+                placeholderText: qsTrc("aistudio", "Model")
+                Component.onCompleted: text = AIStudioStatus.assistantModel
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                TextField {
+                    id: assistantKeyField
+                    Layout.fillWidth: true
+                    echoMode: TextInput.Password
+                    placeholderText: AIStudioStatus.assistantHasKey
+                                     ? qsTrc("aistudio", "API key (saved)")
+                                     : qsTrc("aistudio", "API key")
+                }
+                FlatButton {
+                    text: qsTrc("aistudio", "Save")
+                    onClicked: AIStudioStatus.setAssistantConfig(assistantUrlField.text, assistantModelField.text, assistantKeyField.text)
+                }
+            }
+
+            StyledTextLabel {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                opacity: 0.7
+                text: AIStudioStatus.assistantStatus.length > 0
+                      ? AIStudioStatus.assistantStatus
+                      : qsTrc("aistudio", "Any OpenAI-compatible endpoint (OpenRouter by default); used by the prompt and lyric buttons.")
+            }
+
             // Reload a saved generation's inputs (from "Reuse Prompt").
             Connections {
                 target: AIStudioStatus
@@ -340,6 +387,13 @@ Item {
                 }
                 function onCurrentSeedChanged() {
                     seedField.text = AIStudioStatus.currentSeed
+                }
+                function onAssistantResult(field, text) {
+                    if (field === "style") {
+                        styleField.text = text
+                    } else if (field === "lyrics") {
+                        lyricsField.text = text
+                    }
                 }
             }
 
@@ -369,11 +423,13 @@ Item {
 
                 FlatButton {
                     text: qsTrc("aistudio", "Create Prompt")
-                    enabled: false
+                    enabled: !AIStudioStatus.assistantBusy && lyricsField.text.trim().length > 0
+                    onClicked: AIStudioStatus.createPrompt(lyricsField.text)
                 }
                 FlatButton {
                     text: qsTrc("aistudio", "Improve Prompt")
-                    enabled: false
+                    enabled: !AIStudioStatus.assistantBusy && styleField.text.trim().length > 0
+                    onClicked: AIStudioStatus.improvePrompt(styleField.text)
                 }
                 Item { Layout.fillWidth: true }
             }
@@ -398,7 +454,8 @@ Item {
 
                 FlatButton {
                     text: qsTrc("aistudio", "Write Lyrics")
-                    enabled: false
+                    enabled: !AIStudioStatus.assistantBusy && styleField.text.trim().length > 0
+                    onClicked: AIStudioStatus.writeLyrics(styleField.text)
                 }
                 Item { Layout.fillWidth: true }
             }

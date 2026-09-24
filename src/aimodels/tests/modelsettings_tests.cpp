@@ -99,4 +99,26 @@ TEST_F(ModelSettingsTests, PreservesExtraProviders)
     EXPECT_TRUE(foundYue2);
 }
 
+TEST_F(ModelSettingsTests, PersistsAndReloadsAssistantConfig)
+{
+    AssistantConfig config;
+    config.baseUrl = QStringLiteral("https://example.test/v1");
+    config.apiKey = QStringLiteral("secret");
+    config.model = QStringLiteral("my-model");
+    QString error;
+    ASSERT_TRUE(ModelSettings::setAssistant(config, &error)) << error.toStdString();
+
+    const AssistantConfig reloaded = ModelSettings::assistant();
+    EXPECT_EQ(reloaded.baseUrl, config.baseUrl);
+    EXPECT_EQ(reloaded.apiKey, config.apiKey);
+    EXPECT_EQ(reloaded.model, config.model);
+
+    // Saving provider settings must not drop the assistant config.
+    ProviderConfig yue2 = ModelSettings::provider(QStringLiteral("yue2-native"));
+    yue2.cliPath = QStringLiteral("cli");
+    yue2.modelPath = QStringLiteral("model");
+    ASSERT_TRUE(ModelSettings::setProvider(yue2, &error));
+    EXPECT_EQ(ModelSettings::assistant().apiKey, QStringLiteral("secret"));
+}
+
 }

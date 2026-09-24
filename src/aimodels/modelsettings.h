@@ -21,6 +21,16 @@ struct ProviderConfig {
     bool isConfigured() const { return !cliPath.isEmpty() && !modelPath.isEmpty(); }
 };
 
+using ProviderConfigList = QList<ProviderConfig>;
+
+//! Configuration for the optional writing assistant: any OpenAI-compatible
+//! chat-completions endpoint (OpenRouter by default).
+struct AssistantConfig {
+    QString baseUrl = QStringLiteral("https://openrouter.ai/api/v1");
+    QString apiKey;
+    QString model = QStringLiteral("meta-llama/llama-3.1-8b-instruct");
+};
+
 //! Provider-neutral, machine-level settings persisted as JSON in the
 //! application config directory (override the location in tests).
 class ModelSettings
@@ -35,7 +45,9 @@ public:
     static ProviderConfig provider(const QString& id);
 
     static bool setProvider(const ProviderConfig& config, QString* errorMessage = nullptr);
-};
 
-using ProviderConfigList = QList<ProviderConfig>;
+    //! Assistant configuration, stored beside the provider settings.
+    static AssistantConfig assistant();
+    static bool setAssistant(const AssistantConfig& config, QString* errorMessage = nullptr);
+};
 }

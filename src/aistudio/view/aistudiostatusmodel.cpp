@@ -126,6 +126,31 @@ QVariantList AIStudioStatusModel::examples() const
     return m_examples;
 }
 
+bool AIStudioStatusModel::assistantBusy() const
+{
+    return m_assistantBusy;
+}
+
+QString AIStudioStatusModel::assistantStatus() const
+{
+    return m_assistantStatus;
+}
+
+QString AIStudioStatusModel::assistantBaseUrl() const
+{
+    return m_assistantBaseUrl;
+}
+
+QString AIStudioStatusModel::assistantModel() const
+{
+    return m_assistantModel;
+}
+
+bool AIStudioStatusModel::assistantHasKey() const
+{
+    return m_assistantHasKey;
+}
+
 QString AIStudioStatusModel::currentSeed() const
 {
     return m_currentSeed;
@@ -270,6 +295,32 @@ void AIStudioStatusModel::setExamples(const QVariantList& examples)
     }
     m_examples = examples;
     emit examplesChanged();
+}
+
+void AIStudioStatusModel::updateAssistantBusy(bool busy)
+{
+    if (m_assistantBusy == busy) {
+        return;
+    }
+    m_assistantBusy = busy;
+    emit assistantBusyChanged();
+}
+
+void AIStudioStatusModel::updateAssistantStatus(const QString& status)
+{
+    if (m_assistantStatus == status) {
+        return;
+    }
+    m_assistantStatus = status;
+    emit assistantStatusChanged();
+}
+
+void AIStudioStatusModel::updateAssistantConfig(const QString& baseUrl, const QString& model, bool hasKey)
+{
+    m_assistantBaseUrl = baseUrl;
+    m_assistantModel = model;
+    m_assistantHasKey = hasKey;
+    emit assistantConfigChanged();
 }
 
 void AIStudioStatusModel::enableProjectWorkspace()
@@ -465,6 +516,31 @@ void AIStudioStatusModel::regenerateFromPlan()
 void AIStudioStatusModel::loadExample(int index)
 {
     emit exampleLoadRequested(index);
+}
+
+void AIStudioStatusModel::createPrompt(const QString& lyrics)
+{
+    emit createPromptRequested(lyrics);
+}
+
+void AIStudioStatusModel::improvePrompt(const QString& style)
+{
+    emit improvePromptRequested(style);
+}
+
+void AIStudioStatusModel::writeLyrics(const QString& style)
+{
+    emit writeLyricsRequested(style);
+}
+
+void AIStudioStatusModel::setAssistantConfig(const QString& baseUrl, const QString& model, const QString& apiKey)
+{
+    emit assistantConfigRequested(baseUrl, model, apiKey);
+}
+
+void AIStudioStatusModel::notifyAssistantResult(const QString& field, const QString& text)
+{
+    emit assistantResult(field, text);
 }
 
 void AIStudioStatusModel::refreshPlans()

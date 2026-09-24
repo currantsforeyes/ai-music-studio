@@ -3,6 +3,8 @@
  */
 #include "aistudiocontroller.h"
 
+#include "assistantclient.h"
+
 #include <QObject>
 
 #include "aicore/aicoretypes.h"
@@ -34,6 +36,7 @@
 #include <QUrl>
 
 #include <algorithm>
+#include <memory>
 
 using namespace au::aistudio;
 using namespace muse;
@@ -155,6 +158,8 @@ void AIStudioController::init()
     m_runtimeHost->setJobStatusHandler([this](const au::aicore::JobStatus& status) { recordJobStatus(status); });
     applyModelSettings();
     AIStudioStatusModel::instance()->setExamples(promptExamples());
+    m_assistant = std::make_unique<AssistantClient>();
+    applyAssistantSettings();
     if (selectionController()) {
         selectionController()->clipsSelected().onReceive(this, [this](const au::trackedit::ClipKeyList&) {
             onClipSelectionChanged();
@@ -237,6 +242,16 @@ void AIStudioController::init()
                      m_runtimeHost.get(), [this] { regenerateFromPlan(); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::exampleLoadRequested,
                      m_runtimeHost.get(), [this](int index) { loadExample(index); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::createPromptRequested,
+                     m_runtimeHost.get(), [this](const QString& lyrics) { createPrompt(lyrics); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::improvePromptRequested,
+                     m_runtimeHost.get(), [this](const QString& style) { improvePrompt(style); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::writeLyricsRequested,
+                     m_runtimeHost.get(), [this](const QString& style) { writeLyrics(style); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::assistantConfigRequested,
+                     m_runtimeHost.get(), [this](const QString& baseUrl, const QString& model, const QString& apiKey) {
+        setAssistantConfig(baseUrl, model, apiKey);
+    });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::importPromptRequested,
                      m_runtimeHost.get(), [this](const QString& path) { importPromptFile(path); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::exportPromptRequested,
@@ -1497,6 +1512,77 @@ void AIStudioController::loadExample(int index)
     dispatcher()->dispatch("dock-set-open", ActionData::make_arg2<QString, bool>(AI_STUDIO_DOCK, true));
     AIStudioStatusModel::instance()->setWorkspaceStatus(
         QObject::tr("Loaded example \"%1\"").arg(example.value(QStringLiteral("name")).toString()));
+}
+
+void AIStudioController::createPrompt(const QString& lyrics)
+{
+    runAssistant(QStringLiteral("style"),
+                 QObject::tr("You are a music producer. Write a concise song style prompt - genre, instrumentation, "
+                             "vocal type and tempo - that fits the lyrics the user provides. Reply with the style "
+                             "text only, with no quotes or explanation."),
+                 lyrics.trimmed().isEmpty() ? QObject::tr("Write a style for an upbeat modern song.") : lyrics);
+}
+
+void AIStudioController::improvePrompt(const QString& style)
+{
+    runAssistant(QStringLiteral("style"),
+                 QObject::tr("Improve this song style prompt. Keep it concise and in the same spirit, and return "
+                             "only the improved style text with no quotes or explanation."),
+                 style);
+}
+
+void AIStudioController::writeLyrics(const QString& style)
+{
+    runAssistant(QStringLiteral("lyrics"),
+                 QObject::tr("Write song lyrics for the given style. Use [Verse] and [Chorus] section tags and "
+                             "singable, original lines. Reply with the lyrics only."),
+                 style.trimmed().isEmpty() ? QObject::tr("a heartfelt indie pop song") : style);
+}
+
+void AIStudioController::runAssistant(const QString& field, const QString& systemPrompt, const QString& userPrompt)
+{
+    if (!m_assistant) {
+        return;
+    }
+    if (userPrompt.trimmed().isEmpty()) {
+        AIStudioStatusModel::instance()->updateAssistantStatus(QObject::tr("Nothing to send to the assistant yet"));
+        return;
+    }
+    AIStudioStatusModel::instance()->updateAssistantBusy(true);
+    AIStudioStatusModel::instance()->updateAssistantStatus(QObject::tr("Asking the writing assistant…"));
+    m_assistant->request(systemPrompt, userPrompt, [this, field](bool ok, const QString& content, const QString& error) {
+        AIStudioStatusModel::instance()->updateAssistantBusy(false);
+        if (!ok) {
+            AIStudioStatusModel::instance()->updateAssistantStatus(error);
+            return;
+        }
+        AIStudioStatusModel::instance()->updateAssistantStatus(
+            QObject::tr("Assistant updated the %1").arg(field == QLatin1String("lyrics") ? QObject::tr("lyrics") : QObject::tr("style")));
+        AIStudioStatusModel::instance()->notifyAssistantResult(field, content);
+    });
+}
+
+void AIStudioController::setAssistantConfig(const QString& baseUrl, const QString& model, const QString& apiKey)
+{
+    au::aimodels::AssistantConfig config = au::aimodels::ModelSettings::assistant();
+    config.baseUrl = baseUrl.trimmed();
+    config.model = model.trimmed();
+    if (!apiKey.isEmpty()) {
+        config.apiKey = apiKey;
+    }
+    QString error;
+    if (!au::aimodels::ModelSettings::setAssistant(config, &error)) {
+        AIStudioStatusModel::instance()->updateAssistantStatus(error);
+        return;
+    }
+    applyAssistantSettings();
+    AIStudioStatusModel::instance()->updateAssistantStatus(QObject::tr("Saved assistant settings"));
+}
+
+void AIStudioController::applyAssistantSettings()
+{
+    const au::aimodels::AssistantConfig config = au::aimodels::ModelSettings::assistant();
+    AIStudioStatusModel::instance()->updateAssistantConfig(config.baseUrl, config.model, !config.apiKey.trimmed().isEmpty());
 }
 
 void AIStudioController::importPendingResults()

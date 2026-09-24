@@ -5,6 +5,7 @@
 
 #include "actions/actionable.h"
 #include "actions/iactionsdispatcher.h"
+#include "assistantclient.h"
 #include "context/iglobalcontext.h"
 #include "global/async/asyncable.h"
 #include "modularity/ioc.h"
@@ -70,6 +71,12 @@ private:
                           const QString& seed, const QString& cot, const QString& steps, const QString& guidance,
                           const QVariantMap& sampling);
     void importPendingResults();
+    void createPrompt(const QString& lyrics);
+    void improvePrompt(const QString& style);
+    void writeLyrics(const QString& style);
+    void runAssistant(const QString& field, const QString& systemPrompt, const QString& userPrompt);
+    void setAssistantConfig(const QString& baseUrl, const QString& model, const QString& apiKey);
+    void applyAssistantSettings();
     void reusePromptForTrack(const au::trackedit::ClipKey& clipKey);
     void regenerateFromPlan();
     void loadExample(int index);
@@ -97,6 +104,7 @@ private:
     void updateJobPlaceholder(const QString& jobId, double progress);
     void removeJobPlaceholder(const QString& jobId);
     std::shared_ptr<au::aijobs::RuntimeHostSupervisor> m_runtimeHost;
+    std::unique_ptr<AssistantClient> m_assistant;
     QString m_activeWorkspace;
     au::songplan::SongPlan m_planDraft;
     QString m_planDraftSeed;

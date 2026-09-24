@@ -24,6 +24,16 @@ ProviderConfigList builtInProviders()
     return { yue2 };
 }
 
+QJsonObject readRoot()
+{
+    QFile file(ModelSettings::configFilePath());
+    if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
+        return {};
+    }
+    const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
+    return document.isObject() ? document.object() : QJsonObject {};
+}
+
 ProviderConfigList savedProviders(QString* errorMessage = nullptr)
 {
     ProviderConfigList result;
@@ -146,7 +156,7 @@ bool ModelSettings::setProvider(const ProviderConfig& config, QString* errorMess
         object.insert(QStringLiteral("threads"), entry.threads);
         array.append(object);
     }
-    QJsonObject root;
+    QJsonObject root = readRoot();
     root.insert(QStringLiteral("providers"), array);
 
     const QString path = configFilePath();
@@ -162,6 +172,44 @@ bool ModelSettings::setProvider(const ProviderConfig& config, QString* errorMess
     if (!file.commit()) {
         if (errorMessage) {
             *errorMessage = QStringLiteral("Could not save provider settings");
+        }
+        return false;
+    }
+    return true;
+}
+
+AssistantConfig ModelSettings::assistant()
+{
+    AssistantConfig config;
+    const QJsonObject object = readRoot().value(QStringLiteral("assistant")).toObject();
+    config.baseUrl = object.value(QStringLiteral("baseUrl")).toString(config.baseUrl);
+    config.apiKey = object.value(QStringLiteral("apiKey")).toString(config.apiKey);
+    config.model = object.value(QStringLiteral("model")).toString(config.model);
+    return config;
+}
+
+bool ModelSettings::setAssistant(const AssistantConfig& config, QString* errorMessage)
+{
+    QJsonObject root = readRoot();
+    QJsonObject object;
+    object.insert(QStringLiteral("baseUrl"), config.baseUrl);
+    object.insert(QStringLiteral("apiKey"), config.apiKey);
+    object.insert(QStringLiteral("model"), config.model);
+    root.insert(QStringLiteral("assistant"), object);
+
+    const QString path = configFilePath();
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly)) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Could not write %1").arg(path);
+        }
+        return false;
+    }
+    file.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+    if (!file.commit()) {
+        if (errorMessage) {
+            *errorMessage = QStringLiteral("Could not save assistant settings");
         }
         return false;
     }

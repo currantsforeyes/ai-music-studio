@@ -33,6 +33,11 @@ class AIStudioStatusModel final : public QObject
     Q_PROPERTY(QString reuseGuidance READ reuseGuidance NOTIFY promptReuseChanged)
     Q_PROPERTY(QVariantMap reuseSampling READ reuseSampling NOTIFY promptReuseChanged)
     Q_PROPERTY(QVariantList examples READ examples NOTIFY examplesChanged)
+    Q_PROPERTY(bool assistantBusy READ assistantBusy NOTIFY assistantBusyChanged)
+    Q_PROPERTY(QString assistantStatus READ assistantStatus NOTIFY assistantStatusChanged)
+    Q_PROPERTY(QString assistantBaseUrl READ assistantBaseUrl NOTIFY assistantConfigChanged)
+    Q_PROPERTY(QString assistantModel READ assistantModel NOTIFY assistantConfigChanged)
+    Q_PROPERTY(bool assistantHasKey READ assistantHasKey NOTIFY assistantConfigChanged)
     Q_PROPERTY(QString currentSeed READ currentSeed NOTIFY currentSeedChanged)
 
 public:
@@ -59,6 +64,11 @@ public:
     QString reuseGuidance() const;
     QVariantMap reuseSampling() const;
     QVariantList examples() const;
+    bool assistantBusy() const;
+    QString assistantStatus() const;
+    QString assistantBaseUrl() const;
+    QString assistantModel() const;
+    bool assistantHasKey() const;
     QString currentSeed() const;
     void setRuntimeStatus(const QString& status);
     void setWorkspaceStatus(const QString& status);
@@ -76,6 +86,9 @@ public:
                         const QString& cot, const QString& steps, const QString& guidance, const QVariantMap& sampling);
     void updateCurrentSeed(const QString& seed);
     void setExamples(const QVariantList& examples);
+    void updateAssistantBusy(bool busy);
+    void updateAssistantStatus(const QString& status);
+    void updateAssistantConfig(const QString& baseUrl, const QString& model, bool hasKey);
 
     Q_INVOKABLE void enableProjectWorkspace();
     Q_INVOKABLE void setModelCliPath(const QString& path);
@@ -106,6 +119,11 @@ public:
                                 const QString& cot, const QString& steps, const QString& guidance, const QVariantMap& sampling);
     Q_INVOKABLE void regenerateFromPlan();
     Q_INVOKABLE void loadExample(int index);
+    Q_INVOKABLE void createPrompt(const QString& lyrics);
+    Q_INVOKABLE void improvePrompt(const QString& style);
+    Q_INVOKABLE void writeLyrics(const QString& style);
+    Q_INVOKABLE void setAssistantConfig(const QString& baseUrl, const QString& model, const QString& apiKey);
+    void notifyAssistantResult(const QString& field, const QString& text);
     Q_INVOKABLE void importPromptFile(const QString& path);
     Q_INVOKABLE void exportPromptFile(const QString& path, const QString& style, const QString& lyrics,
                                       const QString& title, const QString& seed, const QString& cot,
@@ -161,6 +179,14 @@ signals:
     void regeneratePlanRequested();
     void exampleLoadRequested(int index);
     void examplesChanged();
+    void assistantBusyChanged();
+    void assistantStatusChanged();
+    void assistantConfigChanged();
+    void assistantResult(const QString& field, const QString& text);
+    void createPromptRequested(const QString& lyrics);
+    void improvePromptRequested(const QString& style);
+    void writeLyricsRequested(const QString& style);
+    void assistantConfigRequested(const QString& baseUrl, const QString& model, const QString& apiKey);
     void importPromptRequested(const QString& path);
     void exportPromptRequested(const QString& path, const QString& style, const QString& lyrics, const QString& title,
                                const QString& seed, const QString& cot, const QString& steps, const QString& guidance,
@@ -205,5 +231,10 @@ private:
     QVariantMap m_reuseSampling;
     QVariantList m_examples;
     QString m_currentSeed;
+    bool m_assistantBusy = false;
+    QString m_assistantStatus;
+    QString m_assistantBaseUrl;
+    QString m_assistantModel;
+    bool m_assistantHasKey = false;
 };
 }
