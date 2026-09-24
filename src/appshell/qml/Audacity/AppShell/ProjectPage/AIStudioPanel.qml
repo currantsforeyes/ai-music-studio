@@ -17,7 +17,6 @@ Item {
 
     // Only YuE2 is implemented today; the other models render disabled.
     property string selectedModel: "yue2-native"
-    property bool planExpanded: false
 
     readonly property string uploadedFileName: {
         const assets = AIStudioStatus.libraryAssets
@@ -211,173 +210,13 @@ Item {
 
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: ui.theme.strokeColor }
 
-            // ---------- Song Plan (collapsed behind a toggle, above Create) ----------
+            // ---------- Song Plan (opens in a window; too large for the panel) ----------
             FlatButton {
                 Layout.fillWidth: true
-                text: root.planExpanded
-                      ? qsTrc("aistudio", "Song Plan  ▾")
-                      : qsTrc("aistudio", "Song Plan  ▸")
-                onClicked: root.planExpanded = !root.planExpanded
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                visible: root.planExpanded
-
-                StyledTextLabel {
-                    Layout.fillWidth: true
-                    visible: AIStudioStatus.planDetail.loaded !== true
-                    wrapMode: Text.Wrap
-                    opacity: 0.7
-                    text: qsTrc("aistudio", "Select an AI-generated clip to see its song plan.")
-                }
-
-                StyledTextLabel {
-                    Layout.fillWidth: true
-                    visible: AIStudioStatus.planDetail.loaded === true
-                    text: qsTrc("aistudio", "Edit %1 (rev %2)").arg(AIStudioStatus.planDetail.id).arg(AIStudioStatus.planDetail.revision)
-                    font: ui.theme.bodyBoldFont
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    visible: AIStudioStatus.planDetail.loaded === true
-                    spacing: 6
-
-                    TextField { id: planTempoField; Layout.preferredWidth: 70; placeholderText: qsTrc("aistudio", "BPM") }
-                    TextField { id: planKeyField; Layout.preferredWidth: 70; placeholderText: qsTrc("aistudio", "Key") }
-                    TextField { id: planMeterField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "4/4") }
-                    FlatButton {
-                        text: qsTrc("aistudio", "Set")
-                        onClicked: AIStudioStatus.setPlanMetadata(Number(planTempoField.text), planKeyField.text, planMeterField.text)
-                    }
-                    FlatButton {
-                        text: qsTrc("aistudio", "Save revision")
-                        onClicked: AIStudioStatus.savePlanRevision()
-                    }
-                }
-
-                StyledTextLabel {
-                    Layout.fillWidth: true
-                    visible: AIStudioStatus.planDetail.loaded === true
-                    text: qsTrc("aistudio", "Sections")
-                    font: ui.theme.bodyBoldFont
-                }
-
-                Column {
-                    Layout.fillWidth: true
-                    visible: AIStudioStatus.planDetail.loaded === true
-                    spacing: 2
-
-                    Repeater {
-                        model: AIStudioStatus.planDetail.loaded === true ? AIStudioStatus.planDetail.sections : []
-                        delegate: RowLayout {
-                            width: parent.width
-                            StyledTextLabel {
-                                Layout.fillWidth: true
-                                elide: Text.ElideRight
-                                text: modelData.name + "  " + modelData.startSeconds + "–" + modelData.endSeconds
-                            }
-                            FlatButton { text: qsTrc("aistudio", "Remove"); onClicked: AIStudioStatus.removePlanSection(index) }
-                        }
-                    }
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    visible: AIStudioStatus.planDetail.loaded === true
-                    spacing: 6
-
-                    TextField { id: sectionNameField; Layout.preferredWidth: 90; placeholderText: qsTrc("aistudio", "Name") }
-                    TextField { id: sectionStartField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "Start") }
-                    TextField { id: sectionEndField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "End") }
-                    FlatButton {
-                        text: qsTrc("aistudio", "Add section")
-                        onClicked: AIStudioStatus.addPlanSection(sectionNameField.text, Number(sectionStartField.text), Number(sectionEndField.text))
-                    }
-                }
-
-                StyledTextLabel {
-                    Layout.fillWidth: true
-                    visible: AIStudioStatus.planDetail.loaded === true
-                    text: qsTrc("aistudio", "Chords")
-                    font: ui.theme.bodyBoldFont
-                }
-
-                Column {
-                    Layout.fillWidth: true
-                    visible: AIStudioStatus.planDetail.loaded === true
-                    spacing: 2
-
-                    Repeater {
-                        model: AIStudioStatus.planDetail.loaded === true ? AIStudioStatus.planDetail.chords : []
-                        delegate: RowLayout {
-                            width: parent.width
-                            StyledTextLabel {
-                                Layout.fillWidth: true
-                                elide: Text.ElideRight
-                                text: modelData.symbol + "  " + modelData.startSeconds + "–" + (modelData.startSeconds + modelData.durationSeconds)
-                            }
-                            FlatButton { text: qsTrc("aistudio", "Remove"); onClicked: AIStudioStatus.removePlanChord(index) }
-                        }
-                    }
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    visible: AIStudioStatus.planDetail.loaded === true
-                    spacing: 6
-
-                    TextField { id: chordSymbolField; Layout.preferredWidth: 70; placeholderText: qsTrc("aistudio", "Chord") }
-                    TextField { id: chordStartField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "Start") }
-                    TextField { id: chordDurationField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "Dur") }
-                    FlatButton {
-                        text: qsTrc("aistudio", "Add chord")
-                        onClicked: AIStudioStatus.addPlanChord(chordSymbolField.text, Number(chordStartField.text), Number(chordDurationField.text))
-                    }
-                }
-
-                StyledTextLabel {
-                    Layout.fillWidth: true
-                    visible: AIStudioStatus.planDetail.loaded === true
-                    text: qsTrc("aistudio", "Melody")
-                    font: ui.theme.bodyBoldFont
-                }
-
-                Column {
-                    Layout.fillWidth: true
-                    visible: AIStudioStatus.planDetail.loaded === true
-                    spacing: 2
-
-                    Repeater {
-                        model: AIStudioStatus.planDetail.loaded === true ? AIStudioStatus.planDetail.melody : []
-                        delegate: RowLayout {
-                            width: parent.width
-                            StyledTextLabel {
-                                Layout.fillWidth: true
-                                elide: Text.ElideRight
-                                text: modelData.midiPitch + "  " + modelData.startSeconds + "s  " + modelData.lyric
-                            }
-                            FlatButton { text: qsTrc("aistudio", "Remove"); onClicked: AIStudioStatus.removePlanNote(index) }
-                        }
-                    }
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    visible: AIStudioStatus.planDetail.loaded === true
-                    spacing: 6
-
-                    TextField { id: notePitchField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "MIDI") }
-                    TextField { id: noteStartField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "Start") }
-                    TextField { id: noteDurationField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "Dur") }
-                    TextField { id: noteLyricField; Layout.preferredWidth: 80; placeholderText: qsTrc("aistudio", "Lyric") }
-                    FlatButton {
-                        text: qsTrc("aistudio", "Add note")
-                        onClicked: AIStudioStatus.addPlanNote(Number(notePitchField.text), Number(noteStartField.text), Number(noteDurationField.text), noteLyricField.text)
-                    }
-                }
+                text: AIStudioStatus.planDetail.loaded === true
+                      ? qsTrc("aistudio", "Song Plan — %1 sections").arg(AIStudioStatus.planDetail.sections.length)
+                      : qsTrc("aistudio", "Song Plan…")
+                onClicked: songPlanPopup.open()
             }
 
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: ui.theme.strokeColor }
@@ -397,11 +236,6 @@ Item {
                     styleField.text = AIStudioStatus.reuseStyle
                     lyricsField.text = AIStudioStatus.reuseLyrics
                     seedField.text = AIStudioStatus.reuseSeed
-                }
-                function onPlanDetailChanged() {
-                    if (AIStudioStatus.planDetail.loaded === true) {
-                        root.planExpanded = true
-                    }
                 }
             }
 
@@ -532,6 +366,197 @@ Item {
                 wrapMode: Text.Wrap
                 opacity: 0.7
                 text: qsTrc("aistudio", "Imported and generated assets stay here even when they are not on the timeline.")
+            }
+        }
+    }
+
+    // The Song Plan is too large for the side panel, so it opens in a window.
+    Popup {
+        id: songPlanPopup
+
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(920, parent ? parent.width - 80 : 920)
+        height: Math.min(640, parent ? parent.height - 80 : 640)
+        modal: true
+        focus: true
+        padding: 0
+        closePolicy: Popup.CloseOnEscape
+
+        background: Rectangle {
+            color: ui.theme.backgroundPrimaryColor
+            border.color: ui.theme.strokeColor
+            border.width: 1
+            radius: 4
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 0
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 54
+                color: ui.theme.backgroundSecondaryColor
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 18
+                    anchors.rightMargin: 10
+                    spacing: 10
+
+                    StyledTextLabel {
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        text: AIStudioStatus.planDetail.loaded === true
+                              ? qsTrc("aistudio", "Song Plan — %1 (rev %2)").arg(AIStudioStatus.planDetail.id).arg(AIStudioStatus.planDetail.revision)
+                              : qsTrc("aistudio", "Song Plan")
+                        font: ui.theme.headerBoldFont
+                    }
+
+                    FlatButton {
+                        text: qsTrc("aistudio", "Save revision")
+                        enabled: AIStudioStatus.planDetail.loaded === true
+                        onClicked: AIStudioStatus.savePlanRevision()
+                    }
+
+                    FlatButton {
+                        text: qsTrc("global", "Close")
+                        onClicked: songPlanPopup.close()
+                    }
+                }
+            }
+
+            StyledTextLabel {
+                Layout.fillWidth: true
+                Layout.margins: 18
+                visible: AIStudioStatus.planDetail.loaded !== true
+                wrapMode: Text.Wrap
+                opacity: 0.7
+                text: qsTrc("aistudio", "Select an AI-generated clip to see its song plan.")
+            }
+
+            ScrollView {
+                id: songPlanScroll
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                visible: AIStudioStatus.planDetail.loaded === true
+                clip: true
+                contentWidth: availableWidth
+
+                ColumnLayout {
+                    width: songPlanScroll.availableWidth
+                    spacing: 8
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        TextField { id: planTempoField; Layout.preferredWidth: 70; placeholderText: qsTrc("aistudio", "BPM") }
+                        TextField { id: planKeyField; Layout.preferredWidth: 70; placeholderText: qsTrc("aistudio", "Key") }
+                        TextField { id: planMeterField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "4/4") }
+                        FlatButton {
+                            text: qsTrc("aistudio", "Set")
+                            onClicked: AIStudioStatus.setPlanMetadata(Number(planTempoField.text), planKeyField.text, planMeterField.text)
+                        }
+                    }
+
+                    StyledTextLabel { Layout.fillWidth: true; text: qsTrc("aistudio", "Sections"); font: ui.theme.bodyBoldFont }
+
+                    Column {
+                        Layout.fillWidth: true
+                        spacing: 2
+
+                        Repeater {
+                            model: AIStudioStatus.planDetail.loaded === true ? AIStudioStatus.planDetail.sections : []
+                            delegate: RowLayout {
+                                width: parent.width
+                                StyledTextLabel {
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                    text: modelData.name + "  " + modelData.startSeconds + "–" + modelData.endSeconds
+                                }
+                                FlatButton { text: qsTrc("aistudio", "Remove"); onClicked: AIStudioStatus.removePlanSection(index) }
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        TextField { id: sectionNameField; Layout.preferredWidth: 90; placeholderText: qsTrc("aistudio", "Name") }
+                        TextField { id: sectionStartField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "Start") }
+                        TextField { id: sectionEndField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "End") }
+                        FlatButton {
+                            text: qsTrc("aistudio", "Add section")
+                            onClicked: AIStudioStatus.addPlanSection(sectionNameField.text, Number(sectionStartField.text), Number(sectionEndField.text))
+                        }
+                    }
+
+                    StyledTextLabel { Layout.fillWidth: true; text: qsTrc("aistudio", "Chords"); font: ui.theme.bodyBoldFont }
+
+                    Column {
+                        Layout.fillWidth: true
+                        spacing: 2
+
+                        Repeater {
+                            model: AIStudioStatus.planDetail.loaded === true ? AIStudioStatus.planDetail.chords : []
+                            delegate: RowLayout {
+                                width: parent.width
+                                StyledTextLabel {
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                    text: modelData.symbol + "  " + modelData.startSeconds + "–" + (modelData.startSeconds + modelData.durationSeconds)
+                                }
+                                FlatButton { text: qsTrc("aistudio", "Remove"); onClicked: AIStudioStatus.removePlanChord(index) }
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        TextField { id: chordSymbolField; Layout.preferredWidth: 70; placeholderText: qsTrc("aistudio", "Chord") }
+                        TextField { id: chordStartField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "Start") }
+                        TextField { id: chordDurationField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "Dur") }
+                        FlatButton {
+                            text: qsTrc("aistudio", "Add chord")
+                            onClicked: AIStudioStatus.addPlanChord(chordSymbolField.text, Number(chordStartField.text), Number(chordDurationField.text))
+                        }
+                    }
+
+                    StyledTextLabel { Layout.fillWidth: true; text: qsTrc("aistudio", "Melody"); font: ui.theme.bodyBoldFont }
+
+                    Column {
+                        Layout.fillWidth: true
+                        spacing: 2
+
+                        Repeater {
+                            model: AIStudioStatus.planDetail.loaded === true ? AIStudioStatus.planDetail.melody : []
+                            delegate: RowLayout {
+                                width: parent.width
+                                StyledTextLabel {
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                    text: modelData.midiPitch + "  " + modelData.startSeconds + "s  " + modelData.lyric
+                                }
+                                FlatButton { text: qsTrc("aistudio", "Remove"); onClicked: AIStudioStatus.removePlanNote(index) }
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        TextField { id: notePitchField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "MIDI") }
+                        TextField { id: noteStartField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "Start") }
+                        TextField { id: noteDurationField; Layout.preferredWidth: 60; placeholderText: qsTrc("aistudio", "Dur") }
+                        TextField { id: noteLyricField; Layout.preferredWidth: 80; placeholderText: qsTrc("aistudio", "Lyric") }
+                        FlatButton {
+                            text: qsTrc("aistudio", "Add note")
+                            onClicked: AIStudioStatus.addPlanNote(Number(notePitchField.text), Number(noteStartField.text), Number(noteDurationField.text), noteLyricField.text)
+                        }
+                    }
+                }
             }
         }
     }
