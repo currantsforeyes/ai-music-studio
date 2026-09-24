@@ -284,123 +284,6 @@ Item {
                 }
             }
 
-            StyledTextLabel {
-                Layout.fillWidth: true
-                text: qsTrc("aistudio", "Writing assistant")
-                font: ui.theme.bodyBoldFont
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 6
-
-                StyledTextLabel { text: qsTrc("aistudio", "Engine") }
-                FlatButton {
-                    text: qsTrc("aistudio", "Cloud")
-                    enabled: root.assistantMode !== "cloud"
-                    onClicked: root.assistantMode = "cloud"
-                }
-                FlatButton {
-                    text: qsTrc("aistudio", "Local")
-                    enabled: root.assistantMode !== "local"
-                    onClicked: root.assistantMode = "local"
-                }
-                Item { Layout.fillWidth: true }
-            }
-
-            TextField {
-                id: assistantUrlField
-                Layout.fillWidth: true
-                visible: root.assistantMode === "cloud"
-                placeholderText: qsTrc("aistudio", "Base URL (OpenAI-compatible)")
-                Component.onCompleted: text = AIStudioStatus.assistantBaseUrl
-            }
-
-            TextField {
-                id: assistantModelField
-                Layout.fillWidth: true
-                visible: root.assistantMode === "cloud"
-                placeholderText: qsTrc("aistudio", "Model")
-                Component.onCompleted: text = AIStudioStatus.assistantModel
-            }
-
-            TextField {
-                id: assistantKeyField
-                Layout.fillWidth: true
-                visible: root.assistantMode === "cloud"
-                echoMode: TextInput.Password
-                placeholderText: AIStudioStatus.assistantHasKey
-                                 ? qsTrc("aistudio", "API key (saved)")
-                                 : qsTrc("aistudio", "API key")
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                visible: root.assistantMode === "local"
-                spacing: 8
-
-                TextField {
-                    id: assistantRunnerField
-                    Layout.fillWidth: true
-                    placeholderText: qsTrc("aistudio", "Runner executable (e.g. llama-server)")
-                    Component.onCompleted: text = AIStudioStatus.assistantRunnerPath
-                }
-                FlatButton {
-                    text: qsTrc("aistudio", "Browse…")
-                    onClicked: assistantRunnerDialog.open()
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                visible: root.assistantMode === "local"
-                spacing: 8
-
-                TextField {
-                    id: assistantModelFileField
-                    Layout.fillWidth: true
-                    placeholderText: qsTrc("aistudio", "Model file (.gguf)")
-                    Component.onCompleted: text = AIStudioStatus.assistantModelPath
-                }
-                FlatButton {
-                    text: qsTrc("aistudio", "Browse…")
-                    onClicked: assistantModelDialog.open()
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                visible: root.assistantMode === "local"
-                spacing: 8
-
-                StyledTextLabel { text: qsTrc("aistudio", "Port") }
-                TextField {
-                    id: assistantPortField
-                    Layout.preferredWidth: 90
-                    placeholderText: qsTrc("aistudio", "8080")
-                    inputMethodHints: Qt.ImhDigitsOnly
-                    Component.onCompleted: text = String(AIStudioStatus.assistantPort)
-                }
-                Item { Layout.fillWidth: true }
-            }
-
-            FlatButton {
-                Layout.alignment: Qt.AlignLeft
-                text: qsTrc("aistudio", "Save")
-                onClicked: AIStudioStatus.setAssistantConfig(root.assistantMode, assistantUrlField.text, assistantModelField.text,
-                                                              assistantKeyField.text, assistantRunnerField.text,
-                                                              assistantModelFileField.text, Number(assistantPortField.text))
-            }
-
-            StyledTextLabel {
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                opacity: 0.7
-                text: AIStudioStatus.assistantStatus.length > 0
-                      ? AIStudioStatus.assistantStatus
-                      : qsTrc("aistudio", "Cloud posts to any OpenAI-compatible endpoint; Local launches your runner with the chosen model file.")
-            }
-
             // Reload a saved generation's inputs (from "Reuse Prompt").
             Connections {
                 target: AIStudioStatus
@@ -706,6 +589,125 @@ Item {
                             }
                         }
                     }
+                }
+
+                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: ui.theme.strokeColor }
+
+                StyledTextLabel {
+                    Layout.fillWidth: true
+                    text: qsTrc("aistudio", "Writing assistant")
+                    font: ui.theme.bodyBoldFont
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+
+                    StyledTextLabel { text: qsTrc("aistudio", "Engine") }
+                    FlatButton {
+                        text: qsTrc("aistudio", "Cloud")
+                        enabled: root.assistantMode !== "cloud"
+                        onClicked: root.assistantMode = "cloud"
+                    }
+                    FlatButton {
+                        text: qsTrc("aistudio", "Local")
+                        enabled: root.assistantMode !== "local"
+                        onClicked: root.assistantMode = "local"
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+
+                TextField {
+                    id: assistantUrlField
+                    Layout.fillWidth: true
+                    visible: root.assistantMode === "cloud"
+                    placeholderText: qsTrc("aistudio", "Base URL (OpenAI-compatible)")
+                    Component.onCompleted: text = AIStudioStatus.assistantBaseUrl
+                }
+
+                TextField {
+                    id: assistantModelField
+                    Layout.fillWidth: true
+                    visible: root.assistantMode === "cloud"
+                    placeholderText: qsTrc("aistudio", "Model")
+                    Component.onCompleted: text = AIStudioStatus.assistantModel
+                }
+
+                TextField {
+                    id: assistantKeyField
+                    Layout.fillWidth: true
+                    visible: root.assistantMode === "cloud"
+                    echoMode: TextInput.Password
+                    placeholderText: AIStudioStatus.assistantHasKey
+                                     ? qsTrc("aistudio", "API key (saved)")
+                                     : qsTrc("aistudio", "API key")
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: root.assistantMode === "local"
+                    spacing: 8
+
+                    TextField {
+                        id: assistantRunnerField
+                        Layout.fillWidth: true
+                        placeholderText: qsTrc("aistudio", "Runner executable (e.g. llama-server)")
+                        Component.onCompleted: text = AIStudioStatus.assistantRunnerPath
+                    }
+                    FlatButton {
+                        text: qsTrc("aistudio", "Browse…")
+                        onClicked: assistantRunnerDialog.open()
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: root.assistantMode === "local"
+                    spacing: 8
+
+                    TextField {
+                        id: assistantModelFileField
+                        Layout.fillWidth: true
+                        placeholderText: qsTrc("aistudio", "Model file (.gguf)")
+                        Component.onCompleted: text = AIStudioStatus.assistantModelPath
+                    }
+                    FlatButton {
+                        text: qsTrc("aistudio", "Browse…")
+                        onClicked: assistantModelDialog.open()
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: root.assistantMode === "local"
+                    spacing: 8
+
+                    StyledTextLabel { text: qsTrc("aistudio", "Port") }
+                    TextField {
+                        id: assistantPortField
+                        Layout.preferredWidth: 90
+                        placeholderText: qsTrc("aistudio", "8080")
+                        inputMethodHints: Qt.ImhDigitsOnly
+                        Component.onCompleted: text = String(AIStudioStatus.assistantPort)
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+
+                FlatButton {
+                    Layout.alignment: Qt.AlignLeft
+                    text: qsTrc("aistudio", "Save")
+                    onClicked: AIStudioStatus.setAssistantConfig(root.assistantMode, assistantUrlField.text, assistantModelField.text,
+                                                                  assistantKeyField.text, assistantRunnerField.text,
+                                                                  assistantModelFileField.text, Number(assistantPortField.text))
+                }
+
+                StyledTextLabel {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    opacity: 0.7
+                    text: AIStudioStatus.assistantStatus.length > 0
+                          ? AIStudioStatus.assistantStatus
+                          : qsTrc("aistudio", "Cloud posts to any OpenAI-compatible endpoint; Local launches your runner with the chosen model file.")
                 }
             }
         }
