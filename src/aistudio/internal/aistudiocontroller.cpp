@@ -26,6 +26,7 @@
 #include <QCryptographicHash>
 #include <QFile>
 #include <QFileInfo>
+#include <QRandomGenerator>
 #include <QUuid>
 #include <QVariantMap>
 #include <QUrl>
@@ -1259,10 +1260,13 @@ void AIStudioController::submitYue2Job(const QString& lyrics, const QString& sty
         parameters.insert("style", style);
     }
     bool seedOk = false;
-    const int seedValue = seed.trimmed().toInt(&seedOk);
-    if (seedOk) {
-        parameters.insert("seed", seedValue);
+    int seedValue = seed.trimmed().toInt(&seedOk);
+    if (!seedOk) {
+        // No seed supplied: pick one so repeated generations differ. The seed is
+        // recorded in the request, so Reuse Prompt reproduces the same song.
+        seedValue = static_cast<int>(QRandomGenerator::global()->generate() & 0x7fffffff);
     }
+    parameters.insert("seed", seedValue);
     if (!title.trimmed().isEmpty()) {
         parameters.insert("title", title);
     }
@@ -1275,7 +1279,8 @@ void AIStudioController::submitYue2Job(const QString& lyrics, const QString& sty
         AIStudioStatusModel::instance()->setWorkspaceStatus(error);
         return;
     }
-    AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Submitted YuE2 generation job"));
+    AIStudioStatusModel::instance()->setWorkspaceStatus(
+        QObject::tr("Submitted YuE2 generation job (seed %1)").arg(seedValue));
 }
 
 void AIStudioController::refreshPlans()
