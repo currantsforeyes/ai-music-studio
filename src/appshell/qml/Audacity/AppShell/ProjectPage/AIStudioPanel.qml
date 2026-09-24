@@ -419,12 +419,18 @@ Item {
                 font: ui.theme.bodyBoldFont
             }
 
-            TextArea {
-                id: styleField
+            ScrollView {
+                id: styleScroll
                 Layout.fillWidth: true
                 Layout.preferredHeight: 72
-                wrapMode: TextArea.Wrap
-                placeholderText: qsTrc("aistudio", "Style Prompt")
+                clip: true
+
+                TextArea {
+                    id: styleField
+                    width: styleScroll.availableWidth
+                    wrapMode: TextArea.Wrap
+                    placeholderText: qsTrc("aistudio", "Style Prompt")
+                }
             }
 
             RowLayout {
@@ -442,12 +448,18 @@ Item {
                 Item { Layout.fillWidth: true }
             }
 
-            TextArea {
-                id: lyricsField
+            ScrollView {
+                id: lyricsScroll
                 Layout.fillWidth: true
                 Layout.preferredHeight: 120
-                wrapMode: TextArea.Wrap
-                placeholderText: qsTrc("aistudio", "Lyrics\n[Verse]\n...\n[Chorus]\n...")
+                clip: true
+
+                TextArea {
+                    id: lyricsField
+                    width: lyricsScroll.availableWidth
+                    wrapMode: TextArea.Wrap
+                    placeholderText: qsTrc("aistudio", "Lyrics\n[Verse]\n...\n[Chorus]\n...")
+                }
             }
 
             RowLayout {

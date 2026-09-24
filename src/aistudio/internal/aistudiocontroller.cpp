@@ -868,7 +868,7 @@ void AIStudioController::recordJobStatus(const au::aicore::JobStatus& status)
                 .arg(QString::fromStdString(au::aicore::toString(status.state))));
         const bool terminal = au::aicore::isTerminal(status.state);
         if (!terminal && QString::fromStdString(status.providerId) == QStringLiteral("yue2-native")) {
-            ensureJobPlaceholder(jobId);
+            updateJobPlaceholder(jobId, status.progress);
         }
         if (status.state == au::aicore::JobState::Complete) {
             registerJobArtifacts(jobId, QString::fromStdString(status.resultManifest));
@@ -889,16 +889,33 @@ void AIStudioController::recordJobStatus(const au::aicore::JobStatus& status)
     }
 }
 
-void AIStudioController::ensureJobPlaceholder(const QString& jobId)
+namespace {
+QString placeholderTrackTitle(const QString& jobId, double progress)
 {
-    if (m_jobPlaceholders.contains(jobId) || !tracks() || !globalContext()->currentProject()) {
+    const int percent = qBound(0, int(progress * 100.0 + 0.5), 100);
+    const int filled = percent / 10;
+    const QString bar = QString(filled, QLatin1Char('#')) + QString(10 - filled, QLatin1Char('-'));
+    return QObject::tr("Generating [%1] %2%  %3").arg(bar).arg(percent).arg(jobId);
+}
+}
+
+void AIStudioController::updateJobPlaceholder(const QString& jobId, double progress)
+{
+    if (!tracks() || !globalContext()->currentProject()) {
+        return;
+    }
+    const QString title = placeholderTrackTitle(jobId, progress);
+    const auto existing = m_jobPlaceholders.find(jobId);
+    if (existing != m_jobPlaceholders.end()) {
+        // Progress is shown live in the placeholder track's title.
+        tracks()->changeTrackTitle(existing.value(), muse::String::fromQString(title));
         return;
     }
     const au::trackedit::TrackId trackId = tracks()->addWaveTrack(2);
     if (trackId < 0) {
         return;
     }
-    tracks()->changeTrackTitle(trackId, muse::String::fromQString(QObject::tr("Generating: %1").arg(jobId)));
+    tracks()->changeTrackTitle(trackId, muse::String::fromQString(title));
     // A silent clip so the pending render is visible on the timeline; it is
     // replaced by the rendered audio (and deleted) when the job completes.
     tracks()->insertSilence(au::trackedit::TrackIdList { trackId }, 0.0, 0.0, 30.0);

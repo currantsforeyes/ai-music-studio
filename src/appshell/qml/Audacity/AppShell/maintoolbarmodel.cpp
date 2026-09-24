@@ -118,10 +118,8 @@ void MainToolBarModel::updateNotationPageItem()
             item[ENABLED_KEY] = context()->currentProject() != nullptr;
             item[IS_TITLE_BOLD_KEY] = context()->currentProject() != nullptr;
 
-            QModelIndex modelIndex = index(i);
+            const QModelIndex modelIndex = index(i);
             emit dataChanged(modelIndex, modelIndex, { IsTitleBoldRole, EnabledRole });
-
-            break;
         }
     }
 }

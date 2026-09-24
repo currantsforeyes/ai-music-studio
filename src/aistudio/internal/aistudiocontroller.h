@@ -76,7 +76,7 @@ private:
     void pushPlanDetail();
     void registerPlanAsset(const au::songplan::SongPlan& plan);
     void registerJobArtifacts(const QString& jobId, const QString& resultManifest);
-    void ensureJobPlaceholder(const QString& jobId);
+    void updateJobPlaceholder(const QString& jobId, double progress);
     void removeJobPlaceholder(const QString& jobId);
     std::shared_ptr<au::aijobs::RuntimeHostSupervisor> m_runtimeHost;
     QString m_activeWorkspace;
