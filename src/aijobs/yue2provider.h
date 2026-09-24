@@ -24,7 +24,9 @@ struct Yue2JobParameters {
     int threads = 8;
     int seed = 0;
     int steps = 8;
-    bool cot = true;
+    // Score mode: "full" (melody + chords), "melody" (melody only), "off".
+    QString cot = QStringLiteral("full");
+    double guidanceScale = 0.0;
 };
 
 // Parses parametersJson over the given defaults. Returns false (with a reason)

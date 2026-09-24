@@ -101,6 +101,21 @@ QString AIStudioStatusModel::reuseSeed() const
     return m_reuseSeed;
 }
 
+QString AIStudioStatusModel::reuseCot() const
+{
+    return m_reuseCot;
+}
+
+QString AIStudioStatusModel::reuseSteps() const
+{
+    return m_reuseSteps;
+}
+
+QString AIStudioStatusModel::reuseGuidance() const
+{
+    return m_reuseGuidance;
+}
+
 QString AIStudioStatusModel::currentSeed() const
 {
     return m_currentSeed;
@@ -214,13 +229,17 @@ void AIStudioStatusModel::setModelConfigured(bool configured)
     emit modelPathsChanged();
 }
 
-void AIStudioStatusModel::setPromptReuse(const QString& style, const QString& lyrics,
-                                         const QString& title, const QString& seed)
+void AIStudioStatusModel::setPromptReuse(const QString& style, const QString& lyrics, const QString& title,
+                                         const QString& seed, const QString& cot, const QString& steps,
+                                         const QString& guidance)
 {
     m_reuseStyle = style;
     m_reuseLyrics = lyrics;
     m_reuseTitle = title;
     m_reuseSeed = seed;
+    m_reuseCot = cot;
+    m_reuseSteps = steps;
+    m_reuseGuidance = guidance;
     emit promptReuseChanged();
 }
 
@@ -398,12 +417,24 @@ void AIStudioStatusModel::insertJobOutput(const QString& jobId)
     }
 }
 
-void AIStudioStatusModel::runYue2Job(const QString& lyrics, const QString& style,
-                                     const QString& seed, const QString& title)
+void AIStudioStatusModel::runYue2Job(const QString& lyrics, const QString& style, const QString& seed, const QString& title,
+                                     const QString& cot, const QString& steps, const QString& guidance)
 {
     if (!lyrics.trimmed().isEmpty()) {
-        emit yue2JobRequested(lyrics, style, seed, title);
+        emit yue2JobRequested(lyrics, style, seed, title, cot, steps, guidance);
     }
+}
+
+void AIStudioStatusModel::importPromptFile(const QString& path)
+{
+    emit importPromptRequested(path);
+}
+
+void AIStudioStatusModel::exportPromptFile(const QString& path, const QString& style, const QString& lyrics,
+                                           const QString& title, const QString& seed, const QString& cot,
+                                           const QString& steps, const QString& guidance)
+{
+    emit exportPromptRequested(path, style, lyrics, title, seed, cot, steps, guidance);
 }
 
 void AIStudioStatusModel::regenerateFromPlan()

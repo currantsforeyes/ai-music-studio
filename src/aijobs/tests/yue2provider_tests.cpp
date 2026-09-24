@@ -24,7 +24,7 @@ TEST(Yue2ProviderTests, UsesDefaultsAndOverrides)
     EXPECT_EQ(parameters.seed, 42);
     EXPECT_EQ(parameters.threads, 4);
     EXPECT_EQ(parameters.steps, 8);
-    EXPECT_TRUE(parameters.cot);
+    EXPECT_EQ(parameters.cot, QStringLiteral("full"));
 }
 
 TEST(Yue2ProviderTests, RejectsMissingLyricsAndBadJson)
@@ -69,6 +69,24 @@ TEST(Yue2ProviderTests, BuildsRequiredArguments)
     EXPECT_TRUE(arguments.contains(QStringLiteral("yue2.vae_gguf=yue2-vae-f16.gguf")));
     EXPECT_TRUE(arguments.contains(QStringLiteral("--out")));
     EXPECT_TRUE(arguments.contains(QStringLiteral("--log")));
+}
+
+TEST(Yue2ProviderTests, ReadsEngineFieldNamesAndScoreMode)
+{
+    Yue2JobParameters parameters;
+    const QByteArray json = R"({ "lyrics": "la la", "style": "pop", "cot": "melody", "guidance_scale": 3.5, "steps": 12, "seed": 5 })";
+    QString error;
+    ASSERT_TRUE(parseYue2Parameters(json, QStringLiteral("cli.exe"), QStringLiteral("models"), 8, &parameters, &error))
+        << error.toStdString();
+    EXPECT_EQ(parameters.text, QStringLiteral("la la"));
+    EXPECT_EQ(parameters.cot, QStringLiteral("melody"));
+    EXPECT_DOUBLE_EQ(parameters.guidanceScale, 3.5);
+    EXPECT_EQ(parameters.steps, 12);
+
+    const QStringList arguments = buildYue2Arguments(parameters, QStringLiteral("out.wav"), QStringLiteral("D:/job"));
+    EXPECT_TRUE(arguments.contains(QStringLiteral("cot=melody")));
+    EXPECT_TRUE(arguments.contains(QStringLiteral("guidance_scale=3.5")));
+    EXPECT_TRUE(arguments.contains(QStringLiteral("num_inference_steps=12")));
 }
 
 TEST(Yue2ProviderTests, PassesAbcFileRequestOption)

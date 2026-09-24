@@ -63,7 +63,11 @@ private:
     void cancelJob(const QString& jobId);
     void retryJob(const QString& jobId);
     void insertJobOutput(const QString& jobId);
-    void submitYue2Job(const QString& lyrics, const QString& style, const QString& seed, const QString& title);
+    void submitYue2Job(const QString& lyrics, const QString& style, const QString& seed, const QString& title,
+                       const QString& cot, const QString& steps, const QString& guidance);
+    void importPromptFile(const QString& path);
+    void exportPromptFile(const QString& path, const QString& style, const QString& lyrics, const QString& title,
+                          const QString& seed, const QString& cot, const QString& steps, const QString& guidance);
     void reusePromptForTrack(const au::trackedit::ClipKey& clipKey);
     void regenerateFromPlan();
     void loadPlanForClip(const au::trackedit::ClipKey& clipKey);

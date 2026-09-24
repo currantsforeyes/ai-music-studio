@@ -50,7 +50,10 @@ bool parseYue2Parameters(const QByteArray& parametersJson,
         if (values.contains("decoderModel")) {
             result.decoderModel = values.value("decoderModel").toString(result.decoderModel);
         }
-        if (values.contains("text")) {
+        if (values.contains("lyrics")) {
+            result.text = values.value("lyrics").toString();
+        }
+        if (values.contains("text") && result.text.isEmpty()) {
             result.text = values.value("text").toString();
         }
         if (values.contains("style")) {
@@ -75,7 +78,15 @@ bool parseYue2Parameters(const QByteArray& parametersJson,
             result.steps = values.value("steps").toInt(result.steps);
         }
         if (values.contains("cot")) {
-            result.cot = values.value("cot").toBool(true);
+            const QJsonValue cotValue = values.value("cot");
+            if (cotValue.isBool()) {
+                result.cot = cotValue.toBool() ? QStringLiteral("full") : QStringLiteral("off");
+            } else if (cotValue.isString() && !cotValue.toString().trimmed().isEmpty()) {
+                result.cot = cotValue.toString().trimmed();
+            }
+        }
+        if (values.contains("guidance_scale")) {
+            result.guidanceScale = values.value("guidance_scale").toDouble(result.guidanceScale);
         }
     }
 
@@ -127,7 +138,11 @@ QStringList buildYue2Arguments(const Yue2JobParameters& parameters, const QStrin
         arguments << QStringLiteral("--request-option") << QStringLiteral("abc=%1").arg(parameters.abc);
     }
 
-    arguments << QStringLiteral("--request-option") << QStringLiteral("cot=%1").arg(parameters.cot ? QStringLiteral("full") : QStringLiteral("off"))
+    if (parameters.guidanceScale > 0.0) {
+        arguments << QStringLiteral("--request-option") << QStringLiteral("guidance_scale=%1").arg(parameters.guidanceScale);
+    }
+
+    arguments << QStringLiteral("--request-option") << QStringLiteral("cot=%1").arg(parameters.cot)
               << QStringLiteral("--request-option") << QStringLiteral("seed=%1").arg(parameters.seed)
               << QStringLiteral("--request-option") << QStringLiteral("num_inference_steps=%1").arg(parameters.steps)
               << QStringLiteral("--session-option") << QStringLiteral("yue2.model_gguf=%1").arg(parameters.mainModel)

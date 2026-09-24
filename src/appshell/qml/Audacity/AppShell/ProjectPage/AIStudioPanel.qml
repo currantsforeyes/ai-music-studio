@@ -3,6 +3,7 @@
  */
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 
 import Muse.Ui
@@ -17,6 +18,7 @@ Item {
 
     // Only YuE2 is implemented today; the other models render disabled.
     property string selectedModel: "yue2-native"
+    property string scoreMode: "full"
 
     readonly property string uploadedFileName: {
         const assets = AIStudioStatus.libraryAssets
@@ -33,6 +35,10 @@ Item {
         for (let index = 0; index < sourcePaths.length; ++index) {
             AIStudioStatus.importLocalWav(sourcePaths[index])
         }
+    }
+
+    function localFile(url) {
+        return decodeURIComponent(url.toString().replace(/^file:\/\/\//, ""))
     }
 
     // Enabling the per-project AI workspace is automatic once the project is saved.
@@ -53,6 +59,25 @@ Item {
     FilePickerModel {
         id: modelPicker
         title: qsTrc("aistudio", "Select the YuE2 model folder")
+    }
+
+    FileDialog {
+        id: importPromptDialog
+        title: qsTrc("aistudio", "Import prompt")
+        fileMode: FileDialog.OpenFile
+        nameFilters: [qsTrc("aistudio", "Prompt files (*.json *.yaml *.yml)")]
+        onAccepted: AIStudioStatus.importPromptFile(root.localFile(selectedFile))
+    }
+
+    FileDialog {
+        id: exportPromptDialog
+        title: qsTrc("aistudio", "Export prompt")
+        fileMode: FileDialog.SaveFile
+        defaultSuffix: "json"
+        nameFilters: [qsTrc("aistudio", "Prompt JSON (*.json)"), qsTrc("aistudio", "Prompt YAML (*.yaml *.yml)")]
+        onAccepted: AIStudioStatus.exportPromptFile(root.localFile(selectedFile), styleField.text, lyricsField.text,
+                                                    titleField.text, seedField.text, root.scoreMode, stepsField.text,
+                                                    guidanceField.text)
     }
 
     ScrollView {
@@ -228,6 +253,21 @@ Item {
                 font: ui.theme.bodyBoldFont
             }
 
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                FlatButton {
+                    text: qsTrc("aistudio", "Import prompt…")
+                    onClicked: importPromptDialog.open()
+                }
+                FlatButton {
+                    text: qsTrc("aistudio", "Export prompt…")
+                    onClicked: exportPromptDialog.open()
+                }
+                Item { Layout.fillWidth: true }
+            }
+
             // Reload a saved generation's inputs (from "Reuse Prompt").
             Connections {
                 target: AIStudioStatus
@@ -236,6 +276,9 @@ Item {
                     styleField.text = AIStudioStatus.reuseStyle
                     lyricsField.text = AIStudioStatus.reuseLyrics
                     seedField.text = AIStudioStatus.reuseSeed
+                    if (AIStudioStatus.reuseCot.length > 0) root.scoreMode = AIStudioStatus.reuseCot
+                    stepsField.text = AIStudioStatus.reuseSteps
+                    guidanceField.text = AIStudioStatus.reuseGuidance
                 }
                 function onCurrentSeedChanged() {
                     seedField.text = AIStudioStatus.currentSeed
@@ -304,14 +347,50 @@ Item {
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: 6
+
+                StyledTextLabel { text: qsTrc("aistudio", "Score") }
+                FlatButton {
+                    text: qsTrc("aistudio", "Full")
+                    enabled: root.scoreMode !== "full"
+                    onClicked: root.scoreMode = "full"
+                }
+                FlatButton {
+                    text: qsTrc("aistudio", "Melody")
+                    enabled: root.scoreMode !== "melody"
+                    onClicked: root.scoreMode = "melody"
+                }
+                FlatButton {
+                    text: qsTrc("aistudio", "None")
+                    enabled: root.scoreMode !== "off"
+                    onClicked: root.scoreMode = "off"
+                }
+                Item { Layout.fillWidth: true }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
 
                 StyledTextLabel { text: qsTrc("aistudio", "Seed") }
                 TextField {
                     id: seedField
-                    Layout.preferredWidth: 120
+                    Layout.preferredWidth: 110
                     placeholderText: qsTrc("aistudio", "Random")
                     inputMethodHints: Qt.ImhDigitsOnly
+                }
+                StyledTextLabel { text: qsTrc("aistudio", "Steps") }
+                TextField {
+                    id: stepsField
+                    Layout.preferredWidth: 56
+                    placeholderText: qsTrc("aistudio", "8")
+                    inputMethodHints: Qt.ImhDigitsOnly
+                }
+                StyledTextLabel { text: qsTrc("aistudio", "Guidance") }
+                TextField {
+                    id: guidanceField
+                    Layout.preferredWidth: 56
+                    placeholderText: qsTrc("aistudio", "auto")
                 }
                 Item { Layout.fillWidth: true }
             }
@@ -320,7 +399,8 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 text: qsTrc("aistudio", "Generate")
                 enabled: lyricsField.text.trim().length > 0 && AIStudioStatus.modelConfigured
-                onClicked: AIStudioStatus.runYue2Job(lyricsField.text, styleField.text, seedField.text, titleField.text)
+                onClicked: AIStudioStatus.runYue2Job(lyricsField.text, styleField.text, seedField.text, titleField.text,
+                                                     root.scoreMode, stepsField.text, guidanceField.text)
             }
 
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: ui.theme.strokeColor }

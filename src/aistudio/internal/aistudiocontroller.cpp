@@ -12,6 +12,7 @@
 #include "ailibrary/globalassetcatalogue.h"
 #include "ailibrary/libraryassetstore.h"
 #include "aimodels/modelsettings.h"
+#include "aimodels/promptfile.h"
 #include "aiproject/aiworkspace.h"
 #include "aistudio/view/aistudiostatusmodel.h"
 #include "songplan/songplan.h"
@@ -27,6 +28,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QRandomGenerator>
+#include <QSaveFile>
 #include <QUuid>
 #include <QVariantMap>
 #include <QUrl>
@@ -181,11 +183,20 @@ void AIStudioController::init()
                      m_runtimeHost.get(), [this](const QString& jobId) { insertJobOutput(jobId); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::yue2JobRequested,
                      m_runtimeHost.get(), [this](const QString& lyrics, const QString& style,
-                                                 const QString& seed, const QString& title) {
-        submitYue2Job(lyrics, style, seed, title);
+                                                 const QString& seed, const QString& title,
+                                                 const QString& cot, const QString& steps, const QString& guidance) {
+        submitYue2Job(lyrics, style, seed, title, cot, steps, guidance);
     });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::regeneratePlanRequested,
                      m_runtimeHost.get(), [this] { regenerateFromPlan(); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::importPromptRequested,
+                     m_runtimeHost.get(), [this](const QString& path) { importPromptFile(path); });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::exportPromptRequested,
+                     m_runtimeHost.get(), [this](const QString& path, const QString& style, const QString& lyrics,
+                                                 const QString& title, const QString& seed, const QString& cot,
+                                                 const QString& steps, const QString& guidance) {
+        exportPromptFile(path, style, lyrics, title, seed, cot, steps, guidance);
+    });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::plansRefreshRequested,
                      m_runtimeHost.get(), [this] { refreshPlans(); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::planCreateRequested,
@@ -1127,11 +1138,23 @@ void AIStudioController::reusePromptForTrack(const au::trackedit::ClipKey& clipK
     const QString seed = parameters.contains(QStringLiteral("seed"))
                          ? QString::number(parameters.value(QStringLiteral("seed")).toInt())
                          : QString();
+    const QString steps = parameters.contains(QStringLiteral("steps"))
+                          ? QString::number(parameters.value(QStringLiteral("steps")).toInt())
+                          : QString();
+    const QString guidance = parameters.contains(QStringLiteral("guidance_scale"))
+                             ? QString::number(parameters.value(QStringLiteral("guidance_scale")).toDouble())
+                             : QString();
+    const QString lyrics = parameters.contains(QStringLiteral("lyrics"))
+                           ? parameters.value(QStringLiteral("lyrics")).toString()
+                           : parameters.value(QStringLiteral("text")).toString();
     AIStudioStatusModel::instance()->setPromptReuse(
         parameters.value(QStringLiteral("style")).toString(),
-        parameters.value(QStringLiteral("text")).toString(),
+        lyrics,
         parameters.value(QStringLiteral("title")).toString(),
-        seed);
+        seed,
+        parameters.value(QStringLiteral("cot")).toString(),
+        steps,
+        guidance);
     loadPlanForJob(jobId);
     dispatcher()->dispatch("dock-set-open", ActionData::make_arg2<QString, bool>(AI_STUDIO_DOCK, true));
     AIStudioStatusModel::instance()->setWorkspaceStatus(
@@ -1259,16 +1282,20 @@ void AIStudioController::setModelModelPath(const QString& path)
     AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Saved the YuE2 model folder"));
 }
 
-void AIStudioController::submitYue2Job(const QString& lyrics, const QString& style,
-                                       const QString& seed, const QString& title)
+void AIStudioController::submitYue2Job(const QString& lyrics, const QString& style, const QString& seed,
+                                       const QString& title, const QString& cot, const QString& steps,
+                                       const QString& guidance)
 {
     if (m_activeWorkspace.isEmpty()) {
         AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Enable the project AI workspace before generating a song"));
         return;
     }
-    QJsonObject parameters { { "text", lyrics } };
+    QJsonObject parameters { { "lyrics", lyrics } };
     if (!style.trimmed().isEmpty()) {
         parameters.insert("style", style);
+    }
+    if (!cot.trimmed().isEmpty()) {
+        parameters.insert("cot", cot.trimmed());
     }
     bool seedOk = false;
     int seedValue = seed.trimmed().toInt(&seedOk);
@@ -1279,6 +1306,16 @@ void AIStudioController::submitYue2Job(const QString& lyrics, const QString& sty
     }
     parameters.insert("seed", seedValue);
     AIStudioStatusModel::instance()->updateCurrentSeed(QString::number(seedValue));
+    bool stepsOk = false;
+    const int stepsValue = steps.trimmed().toInt(&stepsOk);
+    if (stepsOk && stepsValue > 0) {
+        parameters.insert("steps", stepsValue);
+    }
+    bool guidanceOk = false;
+    const double guidanceValue = guidance.trimmed().toDouble(&guidanceOk);
+    if (guidanceOk && guidanceValue > 0.0) {
+        parameters.insert("guidance_scale", guidanceValue);
+    }
     if (!title.trimmed().isEmpty()) {
         parameters.insert("title", title);
     }
@@ -1317,7 +1354,9 @@ void AIStudioController::regenerateFromPlan()
     if (requestFile.open(QIODevice::ReadOnly)) {
         const QJsonObject parameters
             = QJsonDocument::fromJson(requestFile.readAll()).object().value(QStringLiteral("parameters")).toObject();
-        text = parameters.value(QStringLiteral("text")).toString();
+        text = parameters.contains(QStringLiteral("lyrics"))
+               ? parameters.value(QStringLiteral("lyrics")).toString()
+               : parameters.value(QStringLiteral("text")).toString();
         style = parameters.value(QStringLiteral("style")).toString();
         title = parameters.value(QStringLiteral("title")).toString();
     }
@@ -1342,7 +1381,7 @@ void AIStudioController::regenerateFromPlan()
     }
 
     QJsonObject parameters {
-        { "text", text },
+        { "lyrics", text },
         { "cot", QStringLiteral("full") },
         { "seed", seedValue },
         { "abc", QString::fromUtf8(abc) }
@@ -1365,6 +1404,52 @@ void AIStudioController::regenerateFromPlan()
     AIStudioStatusModel::instance()->updateCurrentSeed(QString::number(seedValue));
     AIStudioStatusModel::instance()->setWorkspaceStatus(
         QObject::tr("Regenerating from the edited song plan (seed %1)").arg(seedValue));
+}
+
+void AIStudioController::importPromptFile(const QString& path)
+{
+    QFile file(path);
+    if (path.isEmpty() || !file.open(QIODevice::ReadOnly)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Could not read the prompt file"));
+        return;
+    }
+    const bool yaml = path.endsWith(QLatin1String(".yaml"), Qt::CaseInsensitive)
+                      || path.endsWith(QLatin1String(".yml"), Qt::CaseInsensitive);
+    au::aimodels::PromptFields fields;
+    QString error;
+    if (!au::aimodels::parsePrompt(QString::fromUtf8(file.readAll()), yaml, &fields, &error)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
+        return;
+    }
+    AIStudioStatusModel::instance()->setPromptReuse(
+        fields.style, fields.lyrics, fields.title, fields.seed, fields.cot, fields.steps, fields.guidanceScale);
+    dispatcher()->dispatch("dock-set-open", ActionData::make_arg2<QString, bool>(AI_STUDIO_DOCK, true));
+    AIStudioStatusModel::instance()->setWorkspaceStatus(
+        QObject::tr("Loaded prompt from %1").arg(QFileInfo(path).fileName()));
+}
+
+void AIStudioController::exportPromptFile(const QString& path, const QString& style, const QString& lyrics,
+                                          const QString& title, const QString& seed, const QString& cot,
+                                          const QString& steps, const QString& guidance)
+{
+    au::aimodels::PromptFields fields;
+    fields.style = style;
+    fields.lyrics = lyrics;
+    fields.title = title;
+    fields.seed = seed;
+    fields.cot = cot;
+    fields.steps = steps;
+    fields.guidanceScale = guidance;
+    const bool yaml = path.endsWith(QLatin1String(".yaml"), Qt::CaseInsensitive)
+                      || path.endsWith(QLatin1String(".yml"), Qt::CaseInsensitive);
+    const QString text = au::aimodels::serializePrompt(fields, yaml);
+    QSaveFile file(path);
+    if (path.isEmpty() || !file.open(QIODevice::WriteOnly) || file.write(text.toUtf8()) < 1 || !file.commit()) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Could not write the prompt file"));
+        return;
+    }
+    AIStudioStatusModel::instance()->setWorkspaceStatus(
+        QObject::tr("Saved prompt to %1").arg(QFileInfo(path).fileName()));
 }
 
 void AIStudioController::refreshPlans()
