@@ -17,6 +17,8 @@ static const ActionCode ENABLE_STRETCH_CODE("stretch-clip-to-match-tempo");
 static const ActionCode RENDER_PITCH_SPEED_CODE("clip-render-pitch-speed");
 static const ActionCode RESET_PITCH_SPEED_CODE("clip-reset-pitch-speed");
 static const ActionCode AI_REUSE_PROMPT_CODE("ai.reusePrompt");
+static const ActionCode AI_REPLAY_CODE("ai.replayTrack");
+static const ActionCode AI_VARY_CODE("ai.varyTrack");
 static const ActionCodeList PITCH_SPEED_CODES { RENDER_PITCH_SPEED_CODE, RESET_PITCH_SPEED_CODE };
 
 namespace {
@@ -60,6 +62,8 @@ void ClipContextMenuModel::load()
     // AI: reload the generation prompt/lyrics/seed/title for this clip into the
     // AI Studio Create panel.
     auto reusePromptItem = makeItemWithArg(AI_REUSE_PROMPT_CODE, muse::TranslatableString("aistudio", "Reuse Prompt"));
+    auto replayItem = makeItemWithArg(AI_REPLAY_CODE, muse::TranslatableString("aistudio", "Replay"));
+    auto varyItem = makeItemWithArg(AI_VARY_CODE, muse::TranslatableString("aistudio", "Variation"));
 
     MenuItemList cutAndItems {
         makeMenuItem("cut-leave-gap",
@@ -128,10 +132,22 @@ void ClipContextMenuModel::load()
         }, muse::async::Asyncable::Mode::SetReplace);
     }
 
-    // Place the AI action first when it is available.
+    // Place the AI actions first when they are available.
+    MenuItemList aiItems;
     if (reusePromptItem) {
-        items.prepend(makeSeparator());
-        items.prepend(reusePromptItem);
+        aiItems << reusePromptItem;
+    }
+    if (replayItem) {
+        aiItems << replayItem;
+    }
+    if (varyItem) {
+        aiItems << varyItem;
+    }
+    if (!aiItems.isEmpty()) {
+        aiItems << makeSeparator();
+        for (int index = aiItems.size() - 1; index >= 0; --index) {
+            items.prepend(aiItems.at(index));
+        }
     }
 
     setItems(items);

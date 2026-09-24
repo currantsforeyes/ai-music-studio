@@ -81,6 +81,7 @@ private:
     void applyAssistantSettings();
     void reusePromptForTrack(const au::trackedit::ClipKey& clipKey);
     void regenerateFromPlan();
+    void replayTrackForClip(const au::trackedit::ClipKey& clipKey, bool vary);
     void loadExample(int index);
     void loadPlanForClip(const au::trackedit::ClipKey& clipKey);
     void loadPlanForJob(const QString& jobId);

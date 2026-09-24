@@ -23,7 +23,17 @@ static const UiActionList aiStudioActions {
              au::context::UiCtxProjectOpened,
              au::context::CTX_PROJECT_OPENED,
              TranslatableString("action", "Reuse Prompt"),
-             TranslatableString("action_description", "Reload a generation's prompt, lyrics, seed and title"))
+             TranslatableString("action_description", "Reload a generation's prompt, lyrics, seed and title")),
+    UiAction("ai.replayTrack",
+             au::context::UiCtxProjectOpened,
+             au::context::CTX_PROJECT_OPENED,
+             TranslatableString("action", "Replay"),
+             TranslatableString("action_description", "Re-render this clip exactly from its saved data")),
+    UiAction("ai.varyTrack",
+             au::context::UiCtxProjectOpened,
+             au::context::CTX_PROJECT_OPENED,
+             TranslatableString("action", "Variation"),
+             TranslatableString("action_description", "Re-render this clip with a new performance"))
 };
 
 AIStudioUiActions::AIStudioUiActions(const modularity::ContextPtr& ctx, std::shared_ptr<AIStudioController> controller)

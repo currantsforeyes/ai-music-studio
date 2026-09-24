@@ -44,6 +44,8 @@ using namespace muse::actions;
 
 static const ActionCode OPEN_JOBS_CODE("ai.openJobs");
 static const ActionCode REUSE_PROMPT_CODE("ai.reusePrompt");
+static const ActionCode REPLAY_TRACK_CODE("ai.replayTrack");
+static const ActionCode VARY_TRACK_CODE("ai.varyTrack");
 static const QString AI_STUDIO_DOCK("aiStudioPanel");
 
 namespace {
@@ -300,11 +302,24 @@ void AIStudioController::init()
         }
         reusePromptForTrack(args.arg<au::trackedit::ClipKey>(0));
     });
+    dispatcher()->reg(this, REPLAY_TRACK_CODE, [this](const muse::actions::ActionData& args) {
+        if (args.count() < 1) {
+            return;
+        }
+        replayTrackForClip(args.arg<au::trackedit::ClipKey>(0), false);
+    });
+    dispatcher()->reg(this, VARY_TRACK_CODE, [this](const muse::actions::ActionData& args) {
+        if (args.count() < 1) {
+            return;
+        }
+        replayTrackForClip(args.arg<au::trackedit::ClipKey>(0), true);
+    });
 }
 
 bool AIStudioController::canReceiveAction(const ActionCode& code) const
 {
-    return code == OPEN_JOBS_CODE || code == REUSE_PROMPT_CODE;
+    return code == OPEN_JOBS_CODE || code == REUSE_PROMPT_CODE
+           || code == REPLAY_TRACK_CODE || code == VARY_TRACK_CODE;
 }
 
 void AIStudioController::openJobs()
@@ -1236,6 +1251,49 @@ void AIStudioController::reusePromptForTrack(const au::trackedit::ClipKey& clipK
     dispatcher()->dispatch("dock-set-open", ActionData::make_arg2<QString, bool>(AI_STUDIO_DOCK, true));
     AIStudioStatusModel::instance()->setWorkspaceStatus(
         QObject::tr("Loaded the saved prompt — adjust and generate again"));
+}
+
+void AIStudioController::replayTrackForClip(const au::trackedit::ClipKey& clipKey, bool vary)
+{
+    if (m_activeWorkspace.isEmpty()) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(
+            QObject::tr("Save the project and open AI Studio before replaying"));
+        return;
+    }
+    const QString jobId = jobIdForClip(clipKey);
+    if (jobId.isEmpty()) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(
+            QObject::tr("No saved generation is linked to this clip"));
+        return;
+    }
+    QFile file(QDir(m_activeWorkspace).filePath(QStringLiteral("jobs/%1/replay.json").arg(jobId)));
+    if (!file.open(QIODevice::ReadOnly)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(
+            QObject::tr("This clip has no replay data (only yue2.cpp generations carry it)"));
+        return;
+    }
+    QJsonObject request = QJsonDocument::fromJson(file.readAll()).object();
+    if (!request.contains(QStringLiteral("semantic_tokens"))) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("This clip has no replay data"));
+        return;
+    }
+    if (vary) {
+        // New acoustic noise, same composition: a different performance.
+        request.insert(QStringLiteral("seed"),
+                       static_cast<int>(QRandomGenerator::global()->generate() & 0x7fffffff));
+    }
+    const au::aicore::JobRequest job {
+        "yue2-cpp",
+        QJsonDocument(request).toJson(QJsonDocument::Compact).toStdString()
+    };
+    QString error;
+    if (!m_runtimeHost->submit(job, &error)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
+        return;
+    }
+    AIStudioStatusModel::instance()->setWorkspaceStatus(
+        vary ? QObject::tr("Rendering a variation of the selected clip")
+             : QObject::tr("Replaying the selected clip"));
 }
 
 QString AIStudioController::jobIdForClip(const au::trackedit::ClipKey& clipKey) const
