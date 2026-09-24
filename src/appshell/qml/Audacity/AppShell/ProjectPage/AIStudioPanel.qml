@@ -261,15 +261,16 @@ Item {
                 font: ui.theme.bodyBoldFont
             }
 
-            ListView {
+            GridView {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(contentHeight, 120)
+                Layout.preferredHeight: Math.min(contentHeight, 130)
                 clip: true
-                spacing: 2
+                cellWidth: width / 2
+                cellHeight: 34
                 model: AIStudioStatus.examples
 
                 delegate: FlatButton {
-                    width: ListView.view.width
+                    width: GridView.view.cellWidth - 6
                     text: modelData.name
                     onClicked: AIStudioStatus.loadExample(index)
                 }
