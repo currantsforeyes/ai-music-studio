@@ -4,6 +4,10 @@
 #include "songplan.h"
 
 #include <QMap>
+#include <QPair>
+
+#include <algorithm>
+#include <cmath>
 
 namespace au::songplan {
 bool validate(const SongPlan& plan, QStringList* errors)
@@ -383,5 +387,129 @@ bool parseAbcPlan(const QByteArray& abc, SongPlan* plan, QString* errorMessage)
     }
     plan->sections = sections;
     return true;
+}
+
+namespace {
+QString abcPitch(int midi)
+{
+    static const char* names[12] = { "C", "^C", "D", "^D", "E", "F", "^F", "G", "^G", "A", "^A", "B" };
+    const int pitchClass = ((midi % 12) + 12) % 12;
+    const int octave = midi / 12 - 1;
+    QString token = QString::fromLatin1(names[pitchClass]);
+    if (octave >= 5) {
+        token = token.toLower();
+        for (int index = 5; index < octave; ++index) {
+            token += QLatin1Char('\'');
+        }
+    } else {
+        for (int index = octave; index < 4; ++index) {
+            token += QLatin1Char(',');
+        }
+    }
+    return token;
+}
+
+int abcUnits(double seconds, double secondsPerUnit)
+{
+    if (secondsPerUnit <= 0.0 || seconds <= 0.0) {
+        return 1;
+    }
+    return std::max(1, static_cast<int>(std::lround(seconds / secondsPerUnit)));
+}
+}
+
+QByteArray writeAbcPlan(const SongPlan& plan)
+{
+    const double tempo = plan.tempo > 0.0 ? plan.tempo : 120.0;
+    const QString meter = plan.timeSignature.trimmed().isEmpty() ? QStringLiteral("4/4") : plan.timeSignature.trimmed();
+    const QString key = plan.key.trimmed().isEmpty() ? QStringLiteral("C") : plan.key.trimmed();
+    const double secondsPerWhole = 4.0 * 60.0 / tempo;
+    const double defaultLength = 1.0 / 32.0; // must match the L:1/32 header
+    const double secondsPerUnit = secondsPerWhole * defaultLength;
+
+    struct Event {
+        double time = 0.0;
+        bool isChord = false;
+        QString symbol;
+        int midi = 60;
+        double duration = 0.0;
+    };
+
+    QList<Event> events;
+    for (const ChordEvent& chord : plan.chords) {
+        Event event;
+        event.time = chord.startSeconds;
+        event.isChord = true;
+        event.symbol = chord.symbol;
+        events.append(event);
+    }
+    for (const NoteEvent& note : plan.melody) {
+        Event event;
+        event.time = note.startSeconds;
+        event.isChord = false;
+        event.midi = note.midiPitch;
+        event.duration = note.durationSeconds;
+        events.append(event);
+    }
+    std::stable_sort(events.begin(), events.end(), [](const Event& a, const Event& b) {
+        if (a.time < b.time) {
+            return true;
+        }
+        if (b.time < a.time) {
+            return false;
+        }
+        return a.isChord && !b.isChord; // chords before notes at the same time
+    });
+
+    QList<QPair<double, QString> > sections;
+    for (const SongSection& section : plan.sections) {
+        sections.append({ section.startSeconds, section.name });
+    }
+    std::stable_sort(sections.begin(), sections.end(), [](const QPair<double, QString>& a, const QPair<double, QString>& b) {
+        return a.first < b.first;
+    });
+
+    QString music;
+    double cursor = 0.0;
+    int sectionIndex = 0;
+    for (const Event& event : events) {
+        while (sectionIndex < sections.size() && sections[sectionIndex].first <= event.time + 1e-6) {
+            music += QStringLiteral("|\n% %1\n").arg(sections[sectionIndex].second);
+            ++sectionIndex;
+        }
+        const double gap = event.time - cursor;
+        if (gap > 1e-6) {
+            music += QStringLiteral("z%1").arg(abcUnits(gap, secondsPerUnit));
+            cursor = event.time;
+        }
+        if (event.isChord) {
+            music += QStringLiteral("\"%1\"").arg(event.symbol);
+        } else {
+            const int units = abcUnits(event.duration, secondsPerUnit);
+            music += abcPitch(event.midi);
+            if (units != 1) {
+                music += QString::number(units);
+            }
+            cursor = event.time + event.duration;
+        }
+    }
+    while (sectionIndex < sections.size()) {
+        music += QStringLiteral("\n% %1").arg(sections[sectionIndex].second);
+        ++sectionIndex;
+    }
+
+    QString abc;
+    abc += QStringLiteral("X:1\n");
+    abc += QStringLiteral("T:%1\n").arg(plan.id);
+    abc += QStringLiteral("M:%1\n").arg(meter);
+    abc += QStringLiteral("L:1/32\n");
+    abc += QStringLiteral("Q:1/4=%1\n").arg(qRound(tempo));
+    abc += QStringLiteral("V: Vocal clef=treble name=\"Vocal Melody\"\n");
+    abc += QStringLiteral("V: Ins clef=treble name=\"Ins Melody\"\n");
+    abc += QStringLiteral("K:%1\n").arg(key);
+    abc += QStringLiteral("V: Vocal\n");
+    abc += music;
+    abc += QStringLiteral("\n|\nV: Ins\nZ\n");
+    return abc.toUtf8();
 }
 }

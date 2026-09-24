@@ -376,6 +376,21 @@ private:
             hostLog(QStringLiteral("could not persist request.json for %1").arg(jobId));
         }
 
+        // An edited plan arrives as ABC text; write it out and pass the file so
+        // the provider consumes it via --request-option abc_file=<path>.
+        if (!parameters.abc.trimmed().isEmpty()) {
+            const QString abcPath = QDir(jobDirectory).filePath(QStringLiteral("plan.abc"));
+            QFile abcFile(abcPath);
+            if (abcFile.open(QIODevice::WriteOnly)) {
+                abcFile.write(parameters.abc.toUtf8());
+                abcFile.close();
+                parameters.abcFile = abcPath;
+                hostLog(QStringLiteral("wrote plan.abc for %1").arg(jobId));
+            } else {
+                hostLog(QStringLiteral("could not write plan.abc for %1").arg(jobId));
+            }
+        }
+
         m_activeJobId = jobId;
         m_activeJobSocket = socket;
         m_providerOutputPath = outputPath;

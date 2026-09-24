@@ -56,6 +56,12 @@ bool parseYue2Parameters(const QByteArray& parametersJson,
         if (values.contains("style")) {
             result.style = values.value("style").toString();
         }
+        if (values.contains("abc")) {
+            result.abc = values.value("abc").toString();
+        }
+        if (values.contains("abcFile")) {
+            result.abcFile = values.value("abcFile").toString();
+        }
         if (values.contains("backend")) {
             result.backend = values.value("backend").toString(result.backend);
         }
@@ -112,6 +118,13 @@ QStringList buildYue2Arguments(const Yue2JobParameters& parameters, const QStrin
 
     if (!parameters.style.trimmed().isEmpty()) {
         arguments << QStringLiteral("--request-option") << QStringLiteral("style=%1").arg(parameters.style);
+    }
+
+    // An edited plan is fed back as an external ABC score (melody/full routes).
+    if (!parameters.abcFile.trimmed().isEmpty()) {
+        arguments << QStringLiteral("--request-option") << QStringLiteral("abc_file=%1").arg(parameters.abcFile);
+    } else if (!parameters.abc.trimmed().isEmpty()) {
+        arguments << QStringLiteral("--request-option") << QStringLiteral("abc=%1").arg(parameters.abc);
     }
 
     arguments << QStringLiteral("--request-option") << QStringLiteral("cot=%1").arg(parameters.cot ? QStringLiteral("full") : QStringLiteral("off"))

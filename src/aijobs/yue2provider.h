@@ -18,6 +18,8 @@ struct Yue2JobParameters {
     QString decoderModel = QStringLiteral("yue2-vae-f16.gguf");
     QString text;
     QString style;
+    QString abc;
+    QString abcFile;
     QString backend = QStringLiteral("cuda");
     int threads = 8;
     int seed = 0;

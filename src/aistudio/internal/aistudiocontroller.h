@@ -65,6 +65,7 @@ private:
     void insertJobOutput(const QString& jobId);
     void submitYue2Job(const QString& lyrics, const QString& style, const QString& seed, const QString& title);
     void reusePromptForTrack(const au::trackedit::ClipKey& clipKey);
+    void regenerateFromPlan();
     void loadPlanForClip(const au::trackedit::ClipKey& clipKey);
     void loadPlanForJob(const QString& jobId);
     QString jobIdForClip(const au::trackedit::ClipKey& clipKey) const;

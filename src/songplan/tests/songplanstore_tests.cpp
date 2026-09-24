@@ -269,4 +269,47 @@ TEST(SongPlanTests, ParsesAbcBodyIntoSectionsChordsAndMelody)
     EXPECT_DOUBLE_EQ(plan.sections[1].startSeconds, 2.0 * 4.0 * 60.0 / 100.0);
 }
 
+TEST(SongPlanTests, WritesAbcThatParsesBack)
+{
+    SongPlan plan;
+    plan.id = "plan-write";
+    plan.tempo = 100.0;
+    plan.timeSignature = "4/4";
+    plan.key = "D";
+
+    plan.sections << SongSection { "s1", "intro", 0.0, 4.8 };
+    plan.sections << SongSection { "s2", "chorus", 4.8, 12.0 };
+
+    plan.chords << ChordEvent { 0.0, 2.4, "D" };
+    plan.chords << ChordEvent { 2.4, 2.4, "Gmaj7" };
+    plan.chords << ChordEvent { 4.8, 2.4, "D" };
+
+    plan.melody << NoteEvent { 4.8, 1.2, 81, "" };
+    plan.melody << NoteEvent { 6.0, 0.3, 83, "" };
+    plan.melody << NoteEvent { 6.3, 0.6, 77, "" };
+
+    const QByteArray abc = writeAbcPlan(plan);
+    EXPECT_FALSE(abc.isEmpty());
+
+    SongPlan parsed;
+    parsed.id = "parsed";
+    QString error;
+    ASSERT_TRUE(parseAbcPlan(abc, &parsed, &error)) << error.toStdString();
+
+    EXPECT_DOUBLE_EQ(parsed.tempo, 100.0);
+    EXPECT_EQ(parsed.timeSignature, QStringLiteral("4/4"));
+    EXPECT_EQ(parsed.key, QStringLiteral("D"));
+    ASSERT_EQ(parsed.sections.size(), 2);
+    EXPECT_EQ(parsed.sections[0].name, QStringLiteral("intro"));
+    EXPECT_EQ(parsed.sections[1].name, QStringLiteral("chorus"));
+    ASSERT_EQ(parsed.chords.size(), 3);
+    EXPECT_EQ(parsed.chords.front().symbol, QStringLiteral("D"));
+    ASSERT_EQ(parsed.melody.size(), 3);
+    EXPECT_EQ(parsed.melody.front().midiPitch, 81);
+    EXPECT_EQ(parsed.melody.at(1).midiPitch, 83);
+    EXPECT_EQ(parsed.melody.back().midiPitch, 77);
+    EXPECT_NEAR(parsed.melody.front().durationSeconds, 1.2, 0.05);
+    EXPECT_NEAR(parsed.melody.at(1).durationSeconds, 0.3, 0.05);
+}
+
 }

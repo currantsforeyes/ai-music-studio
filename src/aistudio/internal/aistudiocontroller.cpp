@@ -184,6 +184,8 @@ void AIStudioController::init()
                                                  const QString& seed, const QString& title) {
         submitYue2Job(lyrics, style, seed, title);
     });
+    QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::regeneratePlanRequested,
+                     m_runtimeHost.get(), [this] { regenerateFromPlan(); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::plansRefreshRequested,
                      m_runtimeHost.get(), [this] { refreshPlans(); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::planCreateRequested,
@@ -1291,6 +1293,78 @@ void AIStudioController::submitYue2Job(const QString& lyrics, const QString& sty
     }
     AIStudioStatusModel::instance()->setWorkspaceStatus(
         QObject::tr("Submitted YuE2 generation job (seed %1)").arg(seedValue));
+}
+
+void AIStudioController::regenerateFromPlan()
+{
+    if (m_activeWorkspace.isEmpty()) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(
+            QObject::tr("Save the project and open AI Studio before regenerating"));
+        return;
+    }
+    if (!m_planDraftLoaded) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(
+            QObject::tr("Open a song plan before regenerating"));
+        return;
+    }
+
+    // Reuse the source generation's lyrics/style/title, and feed the edited
+    // plan back as an external ABC score so the model follows this structure.
+    QString text;
+    QString style;
+    QString title;
+    QFile requestFile(QDir(m_activeWorkspace).filePath(QStringLiteral("jobs/%1/request.json").arg(m_planDraft.id)));
+    if (requestFile.open(QIODevice::ReadOnly)) {
+        const QJsonObject parameters
+            = QJsonDocument::fromJson(requestFile.readAll()).object().value(QStringLiteral("parameters")).toObject();
+        text = parameters.value(QStringLiteral("text")).toString();
+        style = parameters.value(QStringLiteral("style")).toString();
+        title = parameters.value(QStringLiteral("title")).toString();
+    }
+    if (text.trimmed().isEmpty()) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(
+            QObject::tr("Regenerating needs lyrics; generate a song from the Create panel first"));
+        return;
+    }
+
+    const QByteArray abc = au::songplan::writeAbcPlan(m_planDraft);
+    if (abc.isEmpty()) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(
+            QObject::tr("The song plan produced an empty score"));
+        return;
+    }
+
+    bool seedOk = false;
+    const QString seedText = AIStudioStatusModel::instance()->currentSeed();
+    int seedValue = seedText.trimmed().toInt(&seedOk);
+    if (!seedOk) {
+        seedValue = static_cast<int>(QRandomGenerator::global()->generate() & 0x7fffffff);
+    }
+
+    QJsonObject parameters {
+        { "text", text },
+        { "cot", QStringLiteral("full") },
+        { "seed", seedValue },
+        { "abc", QString::fromUtf8(abc) }
+    };
+    if (!style.trimmed().isEmpty()) {
+        parameters.insert("style", style);
+    }
+    if (!title.trimmed().isEmpty()) {
+        parameters.insert("title", title);
+    }
+    const au::aicore::JobRequest request {
+        "yue2-native",
+        QJsonDocument(parameters).toJson(QJsonDocument::Compact).toStdString()
+    };
+    QString error;
+    if (!m_runtimeHost->submit(request, &error)) {
+        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
+        return;
+    }
+    AIStudioStatusModel::instance()->updateCurrentSeed(QString::number(seedValue));
+    AIStudioStatusModel::instance()->setWorkspaceStatus(
+        QObject::tr("Regenerating from the edited song plan (seed %1)").arg(seedValue));
 }
 
 void AIStudioController::refreshPlans()

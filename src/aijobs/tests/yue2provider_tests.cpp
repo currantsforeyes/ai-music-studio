@@ -71,6 +71,24 @@ TEST(Yue2ProviderTests, BuildsRequiredArguments)
     EXPECT_TRUE(arguments.contains(QStringLiteral("--log")));
 }
 
+TEST(Yue2ProviderTests, PassesAbcFileRequestOption)
+{
+    Yue2JobParameters parameters;
+    parameters.cliPath = QStringLiteral("cli.exe");
+    parameters.modelDirectory = QStringLiteral("models");
+    parameters.text = QStringLiteral("la");
+    parameters.abcFile = QStringLiteral("D:/job/plan.abc");
+
+    QStringList arguments = buildYue2Arguments(parameters, QStringLiteral("out.wav"), QStringLiteral("D:/job"));
+    EXPECT_TRUE(arguments.contains(QStringLiteral("abc_file=D:/job/plan.abc")));
+    EXPECT_FALSE(arguments.contains(QStringLiteral("abc=D:/job/plan.abc")));
+
+    parameters.abcFile.clear();
+    parameters.abc = QStringLiteral("X:1\nK:C\nC|");
+    arguments = buildYue2Arguments(parameters, QStringLiteral("out.wav"), QStringLiteral("D:/job"));
+    EXPECT_TRUE(arguments.contains(QStringLiteral("abc=X:1\nK:C\nC|")));
+}
+
 TEST(Yue2ProviderTests, MapsLogLinesToProgress)
 {
     const Yue2Progress semantic = yue2ProgressFromLogLine(QStringLiteral("[TIMING ts=20260923-093857] yue2.semantic_ms 51195.5626"));

@@ -451,6 +451,12 @@ Item {
                     }
 
                     FlatButton {
+                        text: qsTrc("aistudio", "Regenerate")
+                        enabled: AIStudioStatus.planDetail.loaded === true
+                        onClicked: AIStudioStatus.regenerateFromPlan()
+                    }
+
+                    FlatButton {
                         text: qsTrc("aistudio", "Save revision")
                         enabled: AIStudioStatus.planDetail.loaded === true
                         onClicked: AIStudioStatus.savePlanRevision()

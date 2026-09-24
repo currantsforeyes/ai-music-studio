@@ -406,6 +406,11 @@ void AIStudioStatusModel::runYue2Job(const QString& lyrics, const QString& style
     }
 }
 
+void AIStudioStatusModel::regenerateFromPlan()
+{
+    emit regeneratePlanRequested();
+}
+
 void AIStudioStatusModel::refreshPlans()
 {
     emit plansRefreshRequested();

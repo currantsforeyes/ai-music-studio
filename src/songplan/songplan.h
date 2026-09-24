@@ -58,4 +58,8 @@ int applyAbcHeader(const QByteArray& abc, SongPlan* plan);
 // whose name contains "vocal", falling back to the first voice). Returns true
 // unless plan is null. Malformed tokens are skipped rather than fatal.
 bool parseAbcPlan(const QByteArray& abc, SongPlan* plan, QString* errorMessage = nullptr);
+
+// Serializes a plan to an ABC score, for feeding an edited plan back to a
+// provider that consumes an external symbolic plan (YuE2's abc/abc_file).
+QByteArray writeAbcPlan(const SongPlan& plan);
 }
