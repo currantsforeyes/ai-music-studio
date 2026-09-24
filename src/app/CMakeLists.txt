@@ -311,6 +311,12 @@ endif()
 
 add_dependencies(audacity builtin-workspaces)
 
+# The editor launches the runtime host at app dir; keep the host built alongside
+# the app so a stale binary can never ship with a newer editor.
+if (TARGET ai_runtime_host)
+    add_dependencies(audacity ai_runtime_host)
+endif()
+
 ###########################################
 # INSTALL
 ###########################################
