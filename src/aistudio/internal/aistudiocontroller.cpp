@@ -232,11 +232,11 @@ void AIStudioController::init()
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::jobInsertRequested,
                      m_runtimeHost.get(), [this](const QString& jobId) { insertJobOutput(jobId); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::yue2JobRequested,
-                     m_runtimeHost.get(), [this](const QString& lyrics, const QString& style,
+                     m_runtimeHost.get(), [this](const QString& providerId, const QString& lyrics, const QString& style,
                                                  const QString& seed, const QString& title,
                                                  const QString& cot, const QString& steps, const QString& guidance,
                                                  const QVariantMap& sampling) {
-        submitYue2Job(lyrics, style, seed, title, cot, steps, guidance, sampling);
+        submitYue2Job(providerId, lyrics, style, seed, title, cot, steps, guidance, sampling);
     });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::regeneratePlanRequested,
                      m_runtimeHost.get(), [this] { regenerateFromPlan(); });
@@ -1320,6 +1320,14 @@ void AIStudioController::applyModelSettings()
     AIStudioStatusModel::instance()->updateModelCliPath(yue2.cliPath.isEmpty() ? envCli : yue2.cliPath);
     AIStudioStatusModel::instance()->updateModelModelPath(yue2.modelPath.isEmpty() ? envModel : yue2.modelPath);
     AIStudioStatusModel::instance()->setModelConfigured(configured);
+
+    const au::aimodels::Yue2CppConfig yue2cpp = au::aimodels::ModelSettings::yue2Cpp();
+    m_runtimeHost->setYue2CppConfig(yue2cpp.enginePath, yue2cpp.backbonePath, yue2cpp.vaePath, yue2cpp.transcriberPath,
+                                    yue2cpp.host, yue2cpp.port, yue2cpp.ggmlBackend);
+    AIStudioStatusModel::instance()->setModelYue2CppStatus(
+        yue2cpp.isConfigured()
+            ? QObject::tr("yue2.cpp engine available: %1").arg(yue2cpp.backbonePath.section(QLatin1Char('/'), -1))
+            : QObject::tr("yue2.cpp engine not found"));
 }
 
 void AIStudioController::setModelCliPath(const QString& path)
@@ -1368,20 +1376,13 @@ QJsonObject samplingOptions(const QVariantMap& sampling)
 }
 }
 
-void AIStudioController::submitYue2Job(const QString& lyrics, const QString& style, const QString& seed,
-                                       const QString& title, const QString& cot, const QString& steps,
-                                       const QString& guidance, const QVariantMap& sampling)
+void AIStudioController::submitYue2Job(const QString& providerId, const QString& lyrics, const QString& style,
+                                       const QString& seed, const QString& title, const QString& cot,
+                                       const QString& steps, const QString& guidance, const QVariantMap& sampling)
 {
     if (m_activeWorkspace.isEmpty()) {
         AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("Enable the project AI workspace before generating a song"));
         return;
-    }
-    QJsonObject parameters { { "lyrics", lyrics } };
-    if (!style.trimmed().isEmpty()) {
-        parameters.insert("style", style);
-    }
-    if (!cot.trimmed().isEmpty()) {
-        parameters.insert("cot", cot.trimmed());
     }
     bool seedOk = false;
     int seedValue = seed.trimmed().toInt(&seedOk);
@@ -1390,26 +1391,70 @@ void AIStudioController::submitYue2Job(const QString& lyrics, const QString& sty
         // recorded in the request, so Reuse Prompt reproduces the same song.
         seedValue = static_cast<int>(QRandomGenerator::global()->generate() & 0x7fffffff);
     }
-    parameters.insert("seed", seedValue);
     AIStudioStatusModel::instance()->updateCurrentSeed(QString::number(seedValue));
     bool stepsOk = false;
     const int stepsValue = steps.trimmed().toInt(&stepsOk);
-    if (stepsOk && stepsValue > 0) {
-        parameters.insert("steps", stepsValue);
-    }
     bool guidanceOk = false;
     const double guidanceValue = guidance.trimmed().toDouble(&guidanceOk);
-    if (guidanceOk && guidanceValue > 0.0) {
-        parameters.insert("guidance_scale", guidanceValue);
-    }
-    if (!sampling.isEmpty()) {
-        parameters.insert("options", samplingOptions(sampling));
+
+    const QString effectiveProvider = providerId.trimmed().isEmpty() ? QStringLiteral("yue2-native") : providerId.trimmed();
+    QJsonObject parameters;
+    if (effectiveProvider == QLatin1String("yue2-cpp")) {
+        // The yue2.cpp server takes its own Yue2Request JSON.
+        parameters.insert(QStringLiteral("style"), style);
+        parameters.insert(QStringLiteral("lyrics"), lyrics);
+        parameters.insert(QStringLiteral("cot"), cot.trimmed().isEmpty() ? QStringLiteral("full") : cot.trimmed());
+        parameters.insert(QStringLiteral("steps"), stepsOk && stepsValue > 0 ? stepsValue : 32);
+        parameters.insert(QStringLiteral("output_format"), QStringLiteral("wav16"));
+        parameters.insert(QStringLiteral("lm_seed"), seedValue);
+        parameters.insert(QStringLiteral("seed"), seedValue);
+        if (guidanceOk && guidanceValue > 0.0) {
+            parameters.insert(QStringLiteral("cfg_scale"), guidanceValue);
+        }
+        const auto addSampling = [&parameters, &sampling](const QString& prefix, const QString& field) {
+            QJsonObject block;
+            const auto put = [&block, &sampling, &prefix](const QString& suffix) {
+                const QString value = sampling.value(prefix + QLatin1Char('_') + suffix).toString().trimmed();
+                bool ok = false;
+                const double number = value.toDouble(&ok);
+                if (ok) {
+                    block.insert(suffix, number);
+                }
+            };
+            put(QStringLiteral("temperature"));
+            put(QStringLiteral("top_p"));
+            put(QStringLiteral("top_k"));
+            put(QStringLiteral("repetition_penalty"));
+            if (!block.isEmpty()) {
+                parameters.insert(field, block);
+            }
+        };
+        addSampling(QStringLiteral("abc"), QStringLiteral("abc_sampling"));
+        addSampling(QStringLiteral("semantic"), QStringLiteral("semantic_sampling"));
+    } else {
+        parameters.insert(QStringLiteral("lyrics"), lyrics);
+        if (!style.trimmed().isEmpty()) {
+            parameters.insert(QStringLiteral("style"), style);
+        }
+        if (!cot.trimmed().isEmpty()) {
+            parameters.insert(QStringLiteral("cot"), cot.trimmed());
+        }
+        parameters.insert(QStringLiteral("seed"), seedValue);
+        if (stepsOk && stepsValue > 0) {
+            parameters.insert(QStringLiteral("steps"), stepsValue);
+        }
+        if (guidanceOk && guidanceValue > 0.0) {
+            parameters.insert(QStringLiteral("guidance_scale"), guidanceValue);
+        }
+        if (!sampling.isEmpty()) {
+            parameters.insert(QStringLiteral("options"), samplingOptions(sampling));
+        }
     }
     if (!title.trimmed().isEmpty()) {
-        parameters.insert("title", title);
+        parameters.insert(QStringLiteral("title"), title);
     }
     const au::aicore::JobRequest request {
-        "yue2-native",
+        effectiveProvider.toStdString(),
         QJsonDocument(parameters).toJson(QJsonDocument::Compact).toStdString()
     };
     QString error;
@@ -1418,7 +1463,7 @@ void AIStudioController::submitYue2Job(const QString& lyrics, const QString& sty
         return;
     }
     AIStudioStatusModel::instance()->setWorkspaceStatus(
-        QObject::tr("Submitted YuE2 generation job (seed %1)").arg(seedValue));
+        QObject::tr("Submitted %1 generation job (seed %2)").arg(effectiveProvider).arg(seedValue));
 }
 
 void AIStudioController::regenerateFromPlan()

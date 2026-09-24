@@ -129,4 +129,46 @@ TEST_F(ModelSettingsTests, PersistsAndReloadsAssistantConfig)
     EXPECT_EQ(ModelSettings::assistant().apiKey, QStringLiteral("secret"));
 }
 
+TEST_F(ModelSettingsTests, DetectsYue2CppInstall)
+{
+    QDir base(m_dir.path());
+    ASSERT_TRUE(base.mkpath(QStringLiteral("resources/yue2-cpp")));
+    ASSERT_TRUE(base.mkpath(QStringLiteral("data/models/yue2-cpp")));
+    QFile engine(base.filePath(QStringLiteral("resources/yue2-cpp/yue-server.exe")));
+    ASSERT_TRUE(engine.open(QIODevice::WriteOnly));
+    engine.write("x");
+    engine.close();
+    for (const QString& name : { "YuE2-3B-BF16.gguf", "YuE2-Vae-F32.gguf", "SheetSage2-F32.gguf" }) {
+        QFile file(base.filePath(QStringLiteral("data/models/yue2-cpp/") + name));
+        ASSERT_TRUE(file.open(QIODevice::WriteOnly));
+        file.write("g");
+        file.close();
+    }
+
+    const Yue2CppConfig config = ModelSettings::detectYue2CppAt(m_dir.path());
+    EXPECT_TRUE(config.isConfigured());
+    EXPECT_TRUE(config.enginePath.endsWith(QStringLiteral("yue-server.exe")));
+    EXPECT_TRUE(config.backbonePath.endsWith(QStringLiteral("YuE2-3B-BF16.gguf")));
+    EXPECT_TRUE(config.vaePath.endsWith(QStringLiteral("YuE2-Vae-F32.gguf")));
+    EXPECT_TRUE(config.transcriberPath.endsWith(QStringLiteral("SheetSage2-F32.gguf")));
+}
+
+TEST_F(ModelSettingsTests, PersistsYue2CppConfig)
+{
+    Yue2CppConfig config;
+    config.enginePath = QStringLiteral("D:/engine/yue-server.exe");
+    config.backbonePath = QStringLiteral("D:/models/YuE2-3B-Q8_0.gguf");
+    config.vaePath = QStringLiteral("D:/models/YuE2-Vae-F32.gguf");
+    config.ggmlBackend = QStringLiteral("CUDA0");
+    QString error;
+    ASSERT_TRUE(ModelSettings::setYue2Cpp(config, &error)) << error.toStdString();
+
+    const Yue2CppConfig reloaded = ModelSettings::yue2Cpp();
+    EXPECT_EQ(reloaded.enginePath, config.enginePath);
+    EXPECT_EQ(reloaded.backbonePath, config.backbonePath);
+    EXPECT_EQ(reloaded.vaePath, config.vaePath);
+    EXPECT_EQ(reloaded.ggmlBackend, config.ggmlBackend);
+    EXPECT_EQ(reloaded.port, 18087);
+}
+
 }

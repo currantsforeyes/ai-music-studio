@@ -42,6 +42,7 @@ class AIStudioStatusModel final : public QObject
     Q_PROPERTY(QString assistantRunnerPath READ assistantRunnerPath NOTIFY assistantConfigChanged)
     Q_PROPERTY(QString assistantModelPath READ assistantModelPath NOTIFY assistantConfigChanged)
     Q_PROPERTY(int assistantPort READ assistantPort NOTIFY assistantConfigChanged)
+    Q_PROPERTY(QString modelYue2CppStatus READ modelYue2CppStatus NOTIFY modelYue2CppStatusChanged)
     Q_PROPERTY(QString currentSeed READ currentSeed NOTIFY currentSeedChanged)
 
 public:
@@ -77,6 +78,7 @@ public:
     QString assistantRunnerPath() const;
     QString assistantModelPath() const;
     int assistantPort() const;
+    QString modelYue2CppStatus() const;
     QString currentSeed() const;
     void setRuntimeStatus(const QString& status);
     void setWorkspaceStatus(const QString& status);
@@ -98,6 +100,7 @@ public:
     void updateAssistantStatus(const QString& status);
     void updateAssistantConfig(const QString& mode, const QString& baseUrl, const QString& model, bool hasKey,
                                const QString& runnerPath, const QString& modelPath, int port);
+    void setModelYue2CppStatus(const QString& status);
 
     Q_INVOKABLE void enableProjectWorkspace();
     Q_INVOKABLE void setModelCliPath(const QString& path);
@@ -124,8 +127,9 @@ public:
     Q_INVOKABLE void cancelJob(const QString& jobId);
     Q_INVOKABLE void retryJob(const QString& jobId);
     Q_INVOKABLE void insertJobOutput(const QString& jobId);
-    Q_INVOKABLE void runYue2Job(const QString& lyrics, const QString& style, const QString& seed, const QString& title,
-                                const QString& cot, const QString& steps, const QString& guidance, const QVariantMap& sampling);
+    Q_INVOKABLE void runYue2Job(const QString& providerId, const QString& lyrics, const QString& style, const QString& seed,
+                                const QString& title, const QString& cot, const QString& steps, const QString& guidance,
+                                const QVariantMap& sampling);
     Q_INVOKABLE void regenerateFromPlan();
     Q_INVOKABLE void loadExample(int index);
     Q_INVOKABLE void createPrompt(const QString& lyrics);
@@ -184,14 +188,16 @@ signals:
     void jobCancelRequested(const QString& jobId);
     void jobRetryRequested(const QString& jobId);
     void jobInsertRequested(const QString& jobId);
-    void yue2JobRequested(const QString& lyrics, const QString& style, const QString& seed, const QString& title,
-                          const QString& cot, const QString& steps, const QString& guidance, const QVariantMap& sampling);
+    void yue2JobRequested(const QString& providerId, const QString& lyrics, const QString& style, const QString& seed,
+                          const QString& title, const QString& cot, const QString& steps, const QString& guidance,
+                          const QVariantMap& sampling);
     void regeneratePlanRequested();
     void exampleLoadRequested(int index);
     void examplesChanged();
     void assistantBusyChanged();
     void assistantStatusChanged();
     void assistantConfigChanged();
+    void modelYue2CppStatusChanged();
     void assistantResult(const QString& field, const QString& text);
     void createPromptRequested(const QString& lyrics);
     void improvePromptRequested(const QString& style);
@@ -251,5 +257,6 @@ private:
     QString m_assistantRunnerPath;
     QString m_assistantModelPath;
     int m_assistantPort = 8080;
+    QString m_modelYue2CppStatus;
 };
 }

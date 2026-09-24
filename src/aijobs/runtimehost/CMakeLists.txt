@@ -1,4 +1,4 @@
-add_executable(ai_runtime_host main.cpp)
+add_executable(ai_runtime_host main.cpp yue2cppprovider.cpp yue2cppprovider.h)
 target_include_directories(ai_runtime_host PRIVATE ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(ai_runtime_host PRIVATE Qt6::Core Qt6::Network aijobs)
 set_target_properties(ai_runtime_host PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_INSTALL_PREFIX}/bin)

@@ -171,6 +171,20 @@ int AIStudioStatusModel::assistantPort() const
     return m_assistantPort;
 }
 
+QString AIStudioStatusModel::modelYue2CppStatus() const
+{
+    return m_modelYue2CppStatus;
+}
+
+void AIStudioStatusModel::setModelYue2CppStatus(const QString& status)
+{
+    if (m_modelYue2CppStatus == status) {
+        return;
+    }
+    m_modelYue2CppStatus = status;
+    emit modelYue2CppStatusChanged();
+}
+
 QString AIStudioStatusModel::currentSeed() const
 {
     return m_currentSeed;
@@ -513,11 +527,12 @@ void AIStudioStatusModel::insertJobOutput(const QString& jobId)
     }
 }
 
-void AIStudioStatusModel::runYue2Job(const QString& lyrics, const QString& style, const QString& seed, const QString& title,
-                                     const QString& cot, const QString& steps, const QString& guidance, const QVariantMap& sampling)
+void AIStudioStatusModel::runYue2Job(const QString& providerId, const QString& lyrics, const QString& style, const QString& seed,
+                                     const QString& title, const QString& cot, const QString& steps, const QString& guidance,
+                                     const QVariantMap& sampling)
 {
     if (!lyrics.trimmed().isEmpty()) {
-        emit yue2JobRequested(lyrics, style, seed, title, cot, steps, guidance, sampling);
+        emit yue2JobRequested(providerId, lyrics, style, seed, title, cot, steps, guidance, sampling);
     }
 }
 

@@ -35,6 +35,9 @@
 #endif
 
 #include "aijobs/yue2provider.h"
+#include "yue2cppprovider.h"
+
+#include <memory>
 
 namespace {
 constexpr int ProtocolVersion = 1;
@@ -157,10 +160,14 @@ bool writeDeterministicWav(const QString& path)
 class RuntimeHost final : public QObject
 {
 public:
-    RuntimeHost(QString token, QString workspace, QString yue2Cli, QString yue2Model, int yue2Threads)
+    RuntimeHost(QString token, QString workspace, QString yue2Cli, QString yue2Model, int yue2Threads,
+                au::aijobs::Yue2CppOptions yue2CppOptions)
         : m_token(std::move(token)), m_workspace(std::move(workspace)),
           m_yue2Cli(std::move(yue2Cli)), m_yue2Model(std::move(yue2Model)), m_yue2Threads(yue2Threads)
     {
+        if (yue2CppOptions.isConfigured()) {
+            m_yue2Cpp = std::make_unique<au::aijobs::Yue2CppRunner>(yue2CppOptions);
+        }
         m_jobTimer.setSingleShot(true);
         connect(&m_jobTimer, &QTimer::timeout, this, [this] { finishTestJob(); });
         m_progressTimer.setInterval(250);
@@ -217,6 +224,8 @@ private:
             startTestJob(socket);
         } else if (providerId == "yue2-native") {
             startYue2Job(socket, request);
+        } else if (providerId == "yue2-cpp") {
+            startYue2CppJob(socket, request);
         } else {
             socket->write(response(false, "unknown-provider", { { "providerId", providerId } }));
         }
@@ -330,6 +339,104 @@ private:
             }
         }
         return path;
+    }
+
+    void startYue2CppJob(QTcpSocket* socket, const QJsonObject& request)
+    {
+        if (!m_activeJobId.isEmpty()) {
+            socket->write(response(false, "job-already-running", { { "jobId", m_activeJobId } }));
+            return;
+        }
+        if (!m_yue2Cpp) {
+            socket->write(response(false, "provider-unavailable",
+                                  { { "message", "The yue2.cpp engine is not configured" } }));
+            return;
+        }
+        const QByteArray parameters = request.value("parameters").toString().toUtf8();
+        const QString jobId = QStringLiteral("yue2cpp-") + QUuid::createUuid().toString(QUuid::WithoutBraces);
+        const QString jobDirectory = QDir(m_workspace).filePath(QStringLiteral("jobs/") + jobId);
+        if (!QDir().mkpath(jobDirectory)) {
+            socket->write(response(false, "workspace-create-failed", { { "jobId", jobId } }));
+            return;
+        }
+
+        QJsonObject requestParameters;
+        const QJsonDocument parametersDocument = QJsonDocument::fromJson(parameters);
+        if (parametersDocument.isObject()) {
+            requestParameters = parametersDocument.object();
+        }
+        const QJsonObject record {
+            { "jobId", jobId },
+            { "providerId", "yue2-cpp" },
+            { "requestedAt", QDateTime::currentDateTimeUtc().toString(Qt::ISODate) },
+            { "parameters", requestParameters }
+        };
+        QFile requestFile(QDir(jobDirectory).filePath(QStringLiteral("request.json")));
+        if (requestFile.open(QIODevice::WriteOnly)) {
+            requestFile.write(QJsonDocument(record).toJson(QJsonDocument::Indented));
+            requestFile.close();
+        }
+
+        m_activeJobId = jobId;
+        m_activeJobSocket = socket;
+        m_providerOutputPath = QDir(jobDirectory).filePath(QStringLiteral("output.wav"));
+        m_providerLog.clear();
+        m_providerArtifacts.clear();
+        m_cancelled = false;
+        socket->write(response(true, "accepted", { { "jobId", jobId }, { "state", "running" } }));
+        hostLog(QStringLiteral("yue2cpp job accepted id=%1").arg(jobId));
+        sendProgressValue(jobId, 0.03, QStringLiteral("Starting the yue2.cpp engine"));
+
+        QString error;
+        const bool ok = m_yue2Cpp->generate(parameters, jobDirectory,
+            [this, jobId](double value, const QString& message) {
+                sendProgressValue(jobId, value, message);
+            }, &error);
+        finishYue2CppJob(jobId, jobDirectory, ok, error);
+    }
+
+    void finishYue2CppJob(const QString& jobId, const QString& jobDirectory, bool ok, const QString& error)
+    {
+        QTcpSocket* socket = m_activeJobSocket;
+        const QString outputPath = m_providerOutputPath;
+        m_activeJobId.clear();
+        m_activeJobSocket = nullptr;
+        m_providerOutputPath.clear();
+        m_cancelled = false;
+        if (!socket) {
+            return;
+        }
+        if (ok && QFileInfo::exists(outputPath)) {
+            QJsonArray artifacts;
+            artifacts.append(QJsonObject {
+                { "id", "score" },
+                { "path", QDir(m_workspace).relativeFilePath(QDir(jobDirectory).filePath(QStringLiteral("score.abc"))) }
+            });
+            artifacts.append(QJsonObject {
+                { "id", "replay" },
+                { "path", QDir(m_workspace).relativeFilePath(QDir(jobDirectory).filePath(QStringLiteral("replay.json"))) }
+            });
+            const QJsonObject manifest {
+                { "protocolVersion", ProtocolVersion },
+                { "jobId", jobId },
+                { "providerId", "yue2-cpp" },
+                { "state", "complete" },
+                { "asset", "output.wav" },
+                { "artifacts", artifacts }
+            };
+            QFile manifestFile(QDir(jobDirectory).filePath(QStringLiteral("result.json")));
+            if (!manifestFile.open(QIODevice::WriteOnly | QIODevice::Truncate)
+                || manifestFile.write(QJsonDocument(manifest).toJson(QJsonDocument::Compact)) < 1) {
+                socket->write(response(false, "manifest-write-failed", { { "jobId", jobId } }));
+                return;
+            }
+            hostLog(QStringLiteral("yue2cpp complete id=%1").arg(jobId));
+            socket->write(response(true, "complete",
+                                  { { "jobId", jobId }, { "resultManifest", "jobs/" + jobId + "/result.json" } }));
+        } else {
+            hostLog(QStringLiteral("yue2cpp failed id=%1 error=%2").arg(jobId, error));
+            socket->write(response(false, "failed", { { "jobId", jobId }, { "errorMessage", error } }));
+        }
     }
 
     void startYue2Job(QTcpSocket* socket, const QJsonObject& request)
@@ -581,6 +688,7 @@ private:
     QString m_yue2Cli;
     QString m_yue2Model;
     int m_yue2Threads = 8;
+    std::unique_ptr<au::aijobs::Yue2CppRunner> m_yue2Cpp;
     QTcpServer m_server;
     QTimer m_jobTimer;
     QTimer m_progressTimer;
@@ -597,7 +705,7 @@ private:
 int selfTest(const QString& workspace)
 {
     const QString token = "self-test-token";
-    RuntimeHost host(token, workspace, {}, {}, 8);
+    RuntimeHost host(token, workspace, {}, {}, 8, au::aijobs::Yue2CppOptions {});
     if (!host.listen()) {
         return 10;
     }
@@ -647,6 +755,13 @@ int main(int argc, char* argv[])
     parser.addOption({ "yue2-cli", "Path to the native YuE2 (audio.cpp) audiocpp_cli executable.", "path" });
     parser.addOption({ "yue2-model", "Directory holding the YuE2 GGUF model and sidecars.", "path" });
     parser.addOption({ "yue2-threads", "Worker threads for the native YuE2 provider.", "n", "8" });
+    parser.addOption({ "yue2cpp-engine", "Path to yue2.cpp's yue-server executable.", "path" });
+    parser.addOption({ "yue2cpp-backbone", "Path to the YuE2 backbone GGUF (yue2.cpp).", "path" });
+    parser.addOption({ "yue2cpp-vae", "Path to the YuE2 VAE GGUF (yue2.cpp).", "path" });
+    parser.addOption({ "yue2cpp-transcriber", "Optional SheetSage2 GGUF for covers (yue2.cpp).", "path" });
+    parser.addOption({ "yue2cpp-host", "yue-server listen host.", "addr", "127.0.0.1" });
+    parser.addOption({ "yue2cpp-port", "yue-server listen port.", "n", "18087" });
+    parser.addOption({ "yue2cpp-backend", "ggml backend device (CUDA0, Vulkan0, CPU; empty = auto).", "name" });
     parser.addOption({ "log-file", "Path to the runtime host diagnostic log.", "path" });
     parser.addOption(QCommandLineOption("self-test", "Run authenticated loopback and test-provider verification."));
     parser.process(application);
@@ -675,7 +790,16 @@ int main(int argc, char* argv[])
         return 3;
     }
     RuntimeHost host(token, workspace, parser.value("yue2-cli"), parser.value("yue2-model"),
-                     parser.value("yue2-threads").toInt());
+                     parser.value("yue2-threads").toInt(),
+                     au::aijobs::Yue2CppOptions {
+                         parser.value("yue2cpp-engine"),
+                         parser.value("yue2cpp-backbone"),
+                         parser.value("yue2cpp-vae"),
+                         parser.value("yue2cpp-transcriber"),
+                         parser.value("yue2cpp-host"),
+                         parser.value("yue2cpp-port").toInt(),
+                         parser.value("yue2cpp-backend")
+                     });
     if (!host.listen()) {
         return 4;
     }

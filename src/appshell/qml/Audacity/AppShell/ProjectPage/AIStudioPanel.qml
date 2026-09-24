@@ -162,7 +162,14 @@ Item {
 
                 RoundedRadioButton {
                     Layout.fillWidth: true
-                    text: qsTrc("aistudio", "YuE2")
+                    text: qsTrc("aistudio", "YuE2 (yue2.cpp)")
+                    checked: root.selectedModel === "yue2-cpp"
+                    onClicked: root.selectedModel = "yue2-cpp"
+                }
+
+                RoundedRadioButton {
+                    Layout.fillWidth: true
+                    text: qsTrc("aistudio", "YuE2 (audio.cpp)")
                     checked: root.selectedModel === "yue2-native"
                     onClicked: root.selectedModel = "yue2-native"
                 }
@@ -454,7 +461,7 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 text: qsTrc("aistudio", "Generate")
                 enabled: lyricsField.text.trim().length > 0 && AIStudioStatus.modelConfigured
-                onClicked: AIStudioStatus.runYue2Job(lyricsField.text, styleField.text, seedField.text, titleField.text,
+                onClicked: AIStudioStatus.runYue2Job(root.selectedModel, lyricsField.text, styleField.text, seedField.text, titleField.text,
                                                      root.scoreMode, stepsField.text, guidanceField.text, root.samplingMap())
             }
 
@@ -538,6 +545,13 @@ Item {
                 }
 
                 Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: ui.theme.strokeColor }
+
+                StyledTextLabel {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    opacity: 0.75
+                    text: AIStudioStatus.modelYue2CppStatus
+                }
 
                 StyledTextLabel {
                     Layout.fillWidth: true

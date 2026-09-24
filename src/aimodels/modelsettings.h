@@ -23,6 +23,21 @@ struct ProviderConfig {
 
 using ProviderConfigList = QList<ProviderConfig>;
 
+//! Configuration for the native yue2.cpp engine (`yue-server`): the executable,
+//! the backbone and VAE GGUFs (plus the optional SheetSage2 transcriber), and
+//! how it listens. This unlocks exact replay, score-first and covers.
+struct Yue2CppConfig {
+    QString enginePath;
+    QString backbonePath;
+    QString vaePath;
+    QString transcriberPath;
+    QString host = QStringLiteral("127.0.0.1");
+    int port = 18087;
+    QString ggmlBackend;
+
+    bool isConfigured() const { return !enginePath.isEmpty() && !backbonePath.isEmpty() && !vaePath.isEmpty(); }
+};
+
 //! Configuration for the optional writing assistant: any OpenAI-compatible
 //! chat-completions endpoint (OpenRouter by default).
 struct AssistantConfig {
@@ -55,5 +70,13 @@ public:
     //! Assistant configuration, stored beside the provider settings.
     static AssistantConfig assistant();
     static bool setAssistant(const AssistantConfig& config, QString* errorMessage = nullptr);
+
+    //! Native yue2.cpp engine configuration and discovery.
+    static Yue2CppConfig yue2Cpp();
+    static bool setYue2Cpp(const Yue2CppConfig& config, QString* errorMessage = nullptr);
+    //! Detects the engine under one YuE2-Studio-style install directory.
+    static Yue2CppConfig detectYue2CppAt(const QString& baseDir);
+    //! Scans the usual install locations for the engine and its models.
+    static Yue2CppConfig detectYue2Cpp();
 };
 }

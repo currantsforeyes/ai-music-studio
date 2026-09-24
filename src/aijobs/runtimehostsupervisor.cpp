@@ -149,6 +149,23 @@ void RuntimeHostSupervisor::start()
     if (!yue2Threads.isEmpty()) {
         arguments << "--yue2-threads" << yue2Threads;
     }
+    if (!m_yue2CppEngine.isEmpty() && !m_yue2CppBackbone.isEmpty() && !m_yue2CppVae.isEmpty()) {
+        arguments << "--yue2cpp-engine" << m_yue2CppEngine
+                  << "--yue2cpp-backbone" << m_yue2CppBackbone
+                  << "--yue2cpp-vae" << m_yue2CppVae;
+        if (!m_yue2CppTranscriber.isEmpty()) {
+            arguments << "--yue2cpp-transcriber" << m_yue2CppTranscriber;
+        }
+        if (!m_yue2CppHost.isEmpty()) {
+            arguments << "--yue2cpp-host" << m_yue2CppHost;
+        }
+        if (m_yue2CppPort > 0) {
+            arguments << "--yue2cpp-port" << QString::number(m_yue2CppPort);
+        }
+        if (!m_yue2CppBackend.isEmpty()) {
+            arguments << "--yue2cpp-backend" << m_yue2CppBackend;
+        }
+    }
     setStatus(tr("Starting local runtime host"));
     m_process->start(executable, arguments);
     m_startupTimer->start(5000);
@@ -159,6 +176,18 @@ void RuntimeHostSupervisor::setProviderConfig(const QString& yue2Cli, const QStr
     m_yue2Cli = yue2Cli;
     m_yue2Model = yue2Model;
     m_yue2Threads = yue2Threads;
+}
+
+void RuntimeHostSupervisor::setYue2CppConfig(const QString& engine, const QString& backbone, const QString& vae,
+                                             const QString& transcriber, const QString& host, int port, const QString& backend)
+{
+    m_yue2CppEngine = engine;
+    m_yue2CppBackbone = backbone;
+    m_yue2CppVae = vae;
+    m_yue2CppTranscriber = transcriber;
+    m_yue2CppHost = host;
+    m_yue2CppPort = port;
+    m_yue2CppBackend = backend;
 }
 
 void RuntimeHostSupervisor::restartInWorkspace(const QString& workspace)
