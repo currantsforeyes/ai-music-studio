@@ -6,8 +6,10 @@
 #include "actions/actionable.h"
 #include "actions/iactionsdispatcher.h"
 #include "context/iglobalcontext.h"
+#include "global/async/asyncable.h"
 #include "modularity/ioc.h"
 #include "songplan/songplan.h"
+#include "trackedit/iselectioncontroller.h"
 #include "trackedit/itracksinteraction.h"
 
 #include <QHash>
@@ -18,11 +20,12 @@ namespace au::aicore { struct JobStatus; }
 namespace au::aijobs { class RuntimeHostSupervisor; }
 
 namespace au::aistudio {
-class AIStudioController final : public muse::actions::Actionable, public muse::Contextable
+class AIStudioController final : public muse::actions::Actionable, public muse::async::Asyncable, public muse::Contextable
 {
     muse::ContextInject<muse::actions::IActionsDispatcher> dispatcher { this };
     muse::ContextInject<au::context::IGlobalContext> globalContext { this };
     muse::ContextInject<au::trackedit::ITracksInteraction> tracks { this };
+    muse::ContextInject<au::trackedit::ISelectionController> selectionController { this };
 
 public:
     AIStudioController(const muse::modularity::ContextPtr& ctx)
@@ -60,6 +63,8 @@ private:
     void insertJobOutput(const QString& jobId);
     void submitYue2Job(const QString& lyrics, const QString& style, const QString& seed, const QString& title);
     void reusePromptForTrack(au::trackedit::TrackId trackId);
+    void loadPlanForTrack(au::trackedit::TrackId trackId);
+    void onClipSelectionChanged();
     void applyModelSettings();
     void setModelCliPath(const QString& path);
     void setModelModelPath(const QString& path);

@@ -225,42 +225,12 @@ Item {
                 spacing: 8
                 visible: root.planExpanded
 
-                ListView {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: Math.min(contentHeight, 120)
-                    clip: true
-                    spacing: 6
-                    model: AIStudioStatus.plans
-
-                    delegate: Column {
-                        width: ListView.view.width
-                        spacing: 2
-
-                        StyledTextLabel {
-                            width: parent.width
-                            elide: Text.ElideRight
-                            text: modelData.id
-                            font: ui.theme.bodyBoldFont
-                        }
-                        StyledTextLabel {
-                            width: parent.width
-                            elide: Text.ElideRight
-                            text: qsTrc("aistudio", "rev %1 · %2 BPM · %3 · %4 sections")
-                                  .arg(modelData.revision).arg(modelData.tempo).arg(modelData.key).arg(modelData.sections)
-                        }
-                        FlatButton {
-                            text: qsTrc("aistudio", "Edit")
-                            onClicked: AIStudioStatus.loadPlan(modelData.id)
-                        }
-                    }
-                }
-
                 StyledTextLabel {
                     Layout.fillWidth: true
-                    visible: AIStudioStatus.plans.length === 0
+                    visible: AIStudioStatus.planDetail.loaded !== true
                     wrapMode: Text.Wrap
                     opacity: 0.7
-                    text: qsTrc("aistudio", "Generated songs produce a plan with sections, chords and melody.")
+                    text: qsTrc("aistudio", "Select an AI-generated clip to see its song plan.")
                 }
 
                 StyledTextLabel {
@@ -427,6 +397,11 @@ Item {
                     styleField.text = AIStudioStatus.reuseStyle
                     lyricsField.text = AIStudioStatus.reuseLyrics
                     seedField.text = AIStudioStatus.reuseSeed
+                }
+                function onPlanDetailChanged() {
+                    if (AIStudioStatus.planDetail.loaded === true) {
+                        root.planExpanded = true
+                    }
                 }
             }
 

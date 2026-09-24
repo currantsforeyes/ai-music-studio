@@ -107,6 +107,11 @@ void AIStudioController::init()
                      AIStudioStatusModel::instance(), &AIStudioStatusModel::setRuntimeStatus);
     m_runtimeHost->setJobStatusHandler([this](const au::aicore::JobStatus& status) { recordJobStatus(status); });
     applyModelSettings();
+    if (selectionController()) {
+        selectionController()->clipsSelected().onReceive(this, [this](const au::trackedit::ClipKeyList&) {
+            onClipSelectionChanged();
+        });
+    }
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::workspaceEnableRequested,
                      m_runtimeHost.get(), [this] { enableProjectWorkspace(); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::modelCliPathSetRequested,
@@ -1065,6 +1070,8 @@ void AIStudioController::insertJobOutput(const QString& jobId)
                 tracks()->changeTrackTitle(trackId, muse::String::fromQString(title));
             }
             au::aijobs::JobStore::setTrackJob(m_activeWorkspace, trackId, jobId);
+            // Show this clip's song plan straight away.
+            loadPlanForTrack(trackId);
             break;
         }
     }
@@ -1106,9 +1113,55 @@ void AIStudioController::reusePromptForTrack(au::trackedit::TrackId trackId)
         parameters.value(QStringLiteral("text")).toString(),
         parameters.value(QStringLiteral("title")).toString(),
         seed);
+    loadPlanForTrack(trackId);
     dispatcher()->dispatch("dock-set-open", ActionData::make_arg2<QString, bool>(AI_STUDIO_DOCK, true));
     AIStudioStatusModel::instance()->setWorkspaceStatus(
         QObject::tr("Loaded the saved prompt — adjust and generate again"));
+}
+
+void AIStudioController::loadPlanForTrack(au::trackedit::TrackId trackId)
+{
+    if (m_activeWorkspace.isEmpty()) {
+        m_planDraftLoaded = false;
+        AIStudioStatusModel::instance()->setPlanDetail({});
+        return;
+    }
+    const QString jobId = au::aijobs::JobStore::jobForTrack(m_activeWorkspace, trackId);
+    if (jobId.isEmpty() || au::songplan::SongPlanStore::latestRevision(m_activeWorkspace, jobId, nullptr) <= 0) {
+        m_planDraftLoaded = false;
+        AIStudioStatusModel::instance()->setPlanDetail({});
+        AIStudioStatusModel::instance()->setWorkspaceStatus(QObject::tr("This clip has no AI song plan"));
+        return;
+    }
+    au::songplan::SongPlan plan;
+    QString error;
+    if (!au::songplan::SongPlanStore::loadLatest(m_activeWorkspace, jobId, &plan, &error)) {
+        m_planDraftLoaded = false;
+        AIStudioStatusModel::instance()->setPlanDetail({});
+        AIStudioStatusModel::instance()->setWorkspaceStatus(error);
+        return;
+    }
+    m_planDraft = plan;
+    m_planDraftLoaded = true;
+    pushPlanDetail();
+    AIStudioStatusModel::instance()->setWorkspaceStatus(
+        QObject::tr("Song plan for the selected clip — %1 sections").arg(plan.sections.size()));
+}
+
+void AIStudioController::onClipSelectionChanged()
+{
+    if (!selectionController() || !selectionController()->hasSelectedClips()) {
+        m_planDraftLoaded = false;
+        AIStudioStatusModel::instance()->setPlanDetail({});
+        return;
+    }
+    const au::trackedit::ClipKeyList clips = selectionController()->selectedClips();
+    if (clips.empty()) {
+        m_planDraftLoaded = false;
+        AIStudioStatusModel::instance()->setPlanDetail({});
+        return;
+    }
+    loadPlanForTrack(clips.front().trackId);
 }
 
 void AIStudioController::applyModelSettings()
