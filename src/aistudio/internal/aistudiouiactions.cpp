@@ -18,7 +18,12 @@ static const UiActionList aiStudioActions {
              au::context::UiCtxProjectOpened,
              au::context::CTX_PROJECT_OPENED,
              TranslatableString("action", "AI Studio"),
-             TranslatableString("action_description", "Open the AI Studio panel"))
+             TranslatableString("action_description", "Open the AI Studio panel")),
+    UiAction("ai.reusePrompt",
+             au::context::UiCtxProjectOpened,
+             au::context::CTX_PROJECT_OPENED,
+             TranslatableString("action", "Reuse Prompt"),
+             TranslatableString("action_description", "Reload a generation's prompt, lyrics, seed and title"))
 };
 
 AIStudioUiActions::AIStudioUiActions(const modularity::ContextPtr& ctx, std::shared_ptr<AIStudioController> controller)

@@ -33,8 +33,12 @@ void ClipContextMenuModel::load()
 {
     AbstractMenuModel::load();
 
-    auto makeItemWithArg = [this](const ActionCode& actionCode, const muse::TranslatableString& title = {}) {
+    auto makeItemWithArg = [this](const ActionCode& actionCode, const muse::TranslatableString& title = {}) -> MenuItem* {
         MenuItem* item = makeMenuItem(actionCode);
+        if (!item) {
+            // makeMenuItem returns null for an action that is not registered.
+            return nullptr;
+        }
         item->setArgs(ActionData::make_arg1<trackedit::ClipKey>(m_clipKey.key));
         if (!title.isEmpty()) {
             item->setTitle(title);
@@ -76,8 +80,6 @@ void ClipContextMenuModel::load()
     };
 
     MenuItemList items {
-        reusePromptItem,
-        makeSeparator(),
         makeItemWithArg("clip-properties"),
         makeItemWithArg("rename-item", muse::TranslatableString("clip", "Rename clip")),
         makeMenu(muse::TranslatableString("clip", "Clip color"), colorItems, "colorMenu"),
@@ -124,6 +126,12 @@ void ClipContextMenuModel::load()
                 updateColorCheckedState();
             }
         }, muse::async::Asyncable::Mode::SetReplace);
+    }
+
+    // Place the AI action first when it is available.
+    if (reusePromptItem) {
+        items.prepend(makeSeparator());
+        items.prepend(reusePromptItem);
     }
 
     setItems(items);
