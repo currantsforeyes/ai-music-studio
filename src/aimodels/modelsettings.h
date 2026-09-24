@@ -26,9 +26,15 @@ using ProviderConfigList = QList<ProviderConfig>;
 //! Configuration for the optional writing assistant: any OpenAI-compatible
 //! chat-completions endpoint (OpenRouter by default).
 struct AssistantConfig {
+    //! "cloud" (OpenAI-compatible endpoint) or "local" (a runner we launch).
+    QString mode = QStringLiteral("cloud");
     QString baseUrl = QStringLiteral("https://openrouter.ai/api/v1");
     QString apiKey;
     QString model = QStringLiteral("meta-llama/llama-3.1-8b-instruct");
+    //! Local mode: the runner executable (e.g. llama-server) and model file.
+    QString runnerPath;
+    QString modelPath;
+    int port = 8080;
 };
 
 //! Provider-neutral, machine-level settings persisted as JSON in the

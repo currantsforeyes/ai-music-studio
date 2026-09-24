@@ -38,6 +38,10 @@ class AIStudioStatusModel final : public QObject
     Q_PROPERTY(QString assistantBaseUrl READ assistantBaseUrl NOTIFY assistantConfigChanged)
     Q_PROPERTY(QString assistantModel READ assistantModel NOTIFY assistantConfigChanged)
     Q_PROPERTY(bool assistantHasKey READ assistantHasKey NOTIFY assistantConfigChanged)
+    Q_PROPERTY(QString assistantMode READ assistantMode NOTIFY assistantConfigChanged)
+    Q_PROPERTY(QString assistantRunnerPath READ assistantRunnerPath NOTIFY assistantConfigChanged)
+    Q_PROPERTY(QString assistantModelPath READ assistantModelPath NOTIFY assistantConfigChanged)
+    Q_PROPERTY(int assistantPort READ assistantPort NOTIFY assistantConfigChanged)
     Q_PROPERTY(QString currentSeed READ currentSeed NOTIFY currentSeedChanged)
 
 public:
@@ -69,6 +73,10 @@ public:
     QString assistantBaseUrl() const;
     QString assistantModel() const;
     bool assistantHasKey() const;
+    QString assistantMode() const;
+    QString assistantRunnerPath() const;
+    QString assistantModelPath() const;
+    int assistantPort() const;
     QString currentSeed() const;
     void setRuntimeStatus(const QString& status);
     void setWorkspaceStatus(const QString& status);
@@ -88,7 +96,8 @@ public:
     void setExamples(const QVariantList& examples);
     void updateAssistantBusy(bool busy);
     void updateAssistantStatus(const QString& status);
-    void updateAssistantConfig(const QString& baseUrl, const QString& model, bool hasKey);
+    void updateAssistantConfig(const QString& mode, const QString& baseUrl, const QString& model, bool hasKey,
+                               const QString& runnerPath, const QString& modelPath, int port);
 
     Q_INVOKABLE void enableProjectWorkspace();
     Q_INVOKABLE void setModelCliPath(const QString& path);
@@ -122,7 +131,8 @@ public:
     Q_INVOKABLE void createPrompt(const QString& lyrics);
     Q_INVOKABLE void improvePrompt(const QString& style);
     Q_INVOKABLE void writeLyrics(const QString& style);
-    Q_INVOKABLE void setAssistantConfig(const QString& baseUrl, const QString& model, const QString& apiKey);
+    Q_INVOKABLE void setAssistantConfig(const QString& mode, const QString& baseUrl, const QString& model,
+                                        const QString& apiKey, const QString& runnerPath, const QString& modelPath, int port);
     void notifyAssistantResult(const QString& field, const QString& text);
     Q_INVOKABLE void importPromptFile(const QString& path);
     Q_INVOKABLE void exportPromptFile(const QString& path, const QString& style, const QString& lyrics,
@@ -186,7 +196,8 @@ signals:
     void createPromptRequested(const QString& lyrics);
     void improvePromptRequested(const QString& style);
     void writeLyricsRequested(const QString& style);
-    void assistantConfigRequested(const QString& baseUrl, const QString& model, const QString& apiKey);
+    void assistantConfigRequested(const QString& mode, const QString& baseUrl, const QString& model,
+                                  const QString& apiKey, const QString& runnerPath, const QString& modelPath, int port);
     void importPromptRequested(const QString& path);
     void exportPromptRequested(const QString& path, const QString& style, const QString& lyrics, const QString& title,
                                const QString& seed, const QString& cot, const QString& steps, const QString& guidance,
@@ -236,5 +247,9 @@ private:
     QString m_assistantBaseUrl;
     QString m_assistantModel;
     bool m_assistantHasKey = false;
+    QString m_assistantMode;
+    QString m_assistantRunnerPath;
+    QString m_assistantModelPath;
+    int m_assistantPort = 8080;
 };
 }

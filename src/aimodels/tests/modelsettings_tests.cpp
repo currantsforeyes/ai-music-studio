@@ -102,16 +102,24 @@ TEST_F(ModelSettingsTests, PreservesExtraProviders)
 TEST_F(ModelSettingsTests, PersistsAndReloadsAssistantConfig)
 {
     AssistantConfig config;
+    config.mode = QStringLiteral("local");
     config.baseUrl = QStringLiteral("https://example.test/v1");
     config.apiKey = QStringLiteral("secret");
     config.model = QStringLiteral("my-model");
+    config.runnerPath = QStringLiteral("D:/tools/llama-server.exe");
+    config.modelPath = QStringLiteral("D:/models/assistant.gguf");
+    config.port = 8081;
     QString error;
     ASSERT_TRUE(ModelSettings::setAssistant(config, &error)) << error.toStdString();
 
     const AssistantConfig reloaded = ModelSettings::assistant();
+    EXPECT_EQ(reloaded.mode, config.mode);
     EXPECT_EQ(reloaded.baseUrl, config.baseUrl);
     EXPECT_EQ(reloaded.apiKey, config.apiKey);
     EXPECT_EQ(reloaded.model, config.model);
+    EXPECT_EQ(reloaded.runnerPath, config.runnerPath);
+    EXPECT_EQ(reloaded.modelPath, config.modelPath);
+    EXPECT_EQ(reloaded.port, config.port);
 
     // Saving provider settings must not drop the assistant config.
     ProviderConfig yue2 = ModelSettings::provider(QStringLiteral("yue2-native"));

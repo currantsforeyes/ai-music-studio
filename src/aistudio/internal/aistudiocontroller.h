@@ -75,7 +75,8 @@ private:
     void improvePrompt(const QString& style);
     void writeLyrics(const QString& style);
     void runAssistant(const QString& field, const QString& systemPrompt, const QString& userPrompt);
-    void setAssistantConfig(const QString& baseUrl, const QString& model, const QString& apiKey);
+    void setAssistantConfig(const QString& mode, const QString& baseUrl, const QString& model,
+                            const QString& apiKey, const QString& runnerPath, const QString& modelPath, int port);
     void applyAssistantSettings();
     void reusePromptForTrack(const au::trackedit::ClipKey& clipKey);
     void regenerateFromPlan();

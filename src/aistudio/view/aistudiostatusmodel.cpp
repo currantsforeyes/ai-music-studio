@@ -151,6 +151,26 @@ bool AIStudioStatusModel::assistantHasKey() const
     return m_assistantHasKey;
 }
 
+QString AIStudioStatusModel::assistantMode() const
+{
+    return m_assistantMode;
+}
+
+QString AIStudioStatusModel::assistantRunnerPath() const
+{
+    return m_assistantRunnerPath;
+}
+
+QString AIStudioStatusModel::assistantModelPath() const
+{
+    return m_assistantModelPath;
+}
+
+int AIStudioStatusModel::assistantPort() const
+{
+    return m_assistantPort;
+}
+
 QString AIStudioStatusModel::currentSeed() const
 {
     return m_currentSeed;
@@ -315,11 +335,16 @@ void AIStudioStatusModel::updateAssistantStatus(const QString& status)
     emit assistantStatusChanged();
 }
 
-void AIStudioStatusModel::updateAssistantConfig(const QString& baseUrl, const QString& model, bool hasKey)
+void AIStudioStatusModel::updateAssistantConfig(const QString& mode, const QString& baseUrl, const QString& model,
+                                                bool hasKey, const QString& runnerPath, const QString& modelPath, int port)
 {
+    m_assistantMode = mode;
     m_assistantBaseUrl = baseUrl;
     m_assistantModel = model;
     m_assistantHasKey = hasKey;
+    m_assistantRunnerPath = runnerPath;
+    m_assistantModelPath = modelPath;
+    m_assistantPort = port;
     emit assistantConfigChanged();
 }
 
@@ -533,9 +558,10 @@ void AIStudioStatusModel::writeLyrics(const QString& style)
     emit writeLyricsRequested(style);
 }
 
-void AIStudioStatusModel::setAssistantConfig(const QString& baseUrl, const QString& model, const QString& apiKey)
+void AIStudioStatusModel::setAssistantConfig(const QString& mode, const QString& baseUrl, const QString& model,
+                                             const QString& apiKey, const QString& runnerPath, const QString& modelPath, int port)
 {
-    emit assistantConfigRequested(baseUrl, model, apiKey);
+    emit assistantConfigRequested(mode, baseUrl, model, apiKey, runnerPath, modelPath, port);
 }
 
 void AIStudioStatusModel::notifyAssistantResult(const QString& field, const QString& text)

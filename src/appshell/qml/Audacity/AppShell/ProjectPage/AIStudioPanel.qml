@@ -19,6 +19,7 @@ Item {
     // Only YuE2 is implemented today; the other models render disabled.
     property string selectedModel: "yue2-native"
     property string scoreMode: "full"
+    property string assistantMode: "cloud"
 
     readonly property string uploadedFileName: {
         const assets = AIStudioStatus.libraryAssets
@@ -62,7 +63,12 @@ Item {
     }
 
     // Enabling the per-project AI workspace is automatic once the project is saved.
-    Component.onCompleted: AIStudioStatus.enableProjectWorkspace()
+    Component.onCompleted: {
+        AIStudioStatus.enableProjectWorkspace()
+        if (AIStudioStatus.assistantMode.length > 0) {
+            root.assistantMode = AIStudioStatus.assistantMode
+        }
+    }
 
     FilePickerModel {
         id: wavPicker
@@ -87,6 +93,22 @@ Item {
         fileMode: FileDialog.OpenFile
         nameFilters: [qsTrc("aistudio", "Prompt files (*.json *.yaml *.yml)")]
         onAccepted: AIStudioStatus.importPromptFile(root.localFile(selectedFile))
+    }
+
+    FileDialog {
+        id: assistantRunnerDialog
+        title: qsTrc("aistudio", "Select the local runner executable")
+        fileMode: FileDialog.OpenFile
+        nameFilters: [qsTrc("aistudio", "Executable (*.exe)"), qsTrc("aistudio", "All files (*)")]
+        onAccepted: assistantRunnerField.text = root.localFile(selectedFile)
+    }
+
+    FileDialog {
+        id: assistantModelDialog
+        title: qsTrc("aistudio", "Select the local model file")
+        fileMode: FileDialog.OpenFile
+        nameFilters: [qsTrc("aistudio", "Model files (*.gguf)"), qsTrc("aistudio", "All files (*)")]
+        onAccepted: assistantModelFileField.text = root.localFile(selectedFile)
     }
 
     FileDialog {
@@ -323,9 +345,28 @@ Item {
                 font: ui.theme.bodyBoldFont
             }
 
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+
+                StyledTextLabel { text: qsTrc("aistudio", "Engine") }
+                FlatButton {
+                    text: qsTrc("aistudio", "Cloud")
+                    enabled: root.assistantMode !== "cloud"
+                    onClicked: root.assistantMode = "cloud"
+                }
+                FlatButton {
+                    text: qsTrc("aistudio", "Local")
+                    enabled: root.assistantMode !== "local"
+                    onClicked: root.assistantMode = "local"
+                }
+                Item { Layout.fillWidth: true }
+            }
+
             TextField {
                 id: assistantUrlField
                 Layout.fillWidth: true
+                visible: root.assistantMode === "cloud"
                 placeholderText: qsTrc("aistudio", "Base URL (OpenAI-compatible)")
                 Component.onCompleted: text = AIStudioStatus.assistantBaseUrl
             }
@@ -333,26 +374,77 @@ Item {
             TextField {
                 id: assistantModelField
                 Layout.fillWidth: true
+                visible: root.assistantMode === "cloud"
                 placeholderText: qsTrc("aistudio", "Model")
                 Component.onCompleted: text = AIStudioStatus.assistantModel
             }
 
+            TextField {
+                id: assistantKeyField
+                Layout.fillWidth: true
+                visible: root.assistantMode === "cloud"
+                echoMode: TextInput.Password
+                placeholderText: AIStudioStatus.assistantHasKey
+                                 ? qsTrc("aistudio", "API key (saved)")
+                                 : qsTrc("aistudio", "API key")
+            }
+
             RowLayout {
                 Layout.fillWidth: true
+                visible: root.assistantMode === "local"
                 spacing: 8
 
                 TextField {
-                    id: assistantKeyField
+                    id: assistantRunnerField
                     Layout.fillWidth: true
-                    echoMode: TextInput.Password
-                    placeholderText: AIStudioStatus.assistantHasKey
-                                     ? qsTrc("aistudio", "API key (saved)")
-                                     : qsTrc("aistudio", "API key")
+                    placeholderText: qsTrc("aistudio", "Runner executable (e.g. llama-server)")
+                    Component.onCompleted: text = AIStudioStatus.assistantRunnerPath
                 }
                 FlatButton {
-                    text: qsTrc("aistudio", "Save")
-                    onClicked: AIStudioStatus.setAssistantConfig(assistantUrlField.text, assistantModelField.text, assistantKeyField.text)
+                    text: qsTrc("aistudio", "Browse…")
+                    onClicked: assistantRunnerDialog.open()
                 }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                visible: root.assistantMode === "local"
+                spacing: 8
+
+                TextField {
+                    id: assistantModelFileField
+                    Layout.fillWidth: true
+                    placeholderText: qsTrc("aistudio", "Model file (.gguf)")
+                    Component.onCompleted: text = AIStudioStatus.assistantModelPath
+                }
+                FlatButton {
+                    text: qsTrc("aistudio", "Browse…")
+                    onClicked: assistantModelDialog.open()
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                visible: root.assistantMode === "local"
+                spacing: 8
+
+                StyledTextLabel { text: qsTrc("aistudio", "Port") }
+                TextField {
+                    id: assistantPortField
+                    Layout.preferredWidth: 90
+                    placeholderText: qsTrc("aistudio", "8080")
+                    inputMethodHints: Qt.ImhDigitsOnly
+                    Component.onCompleted: text = String(AIStudioStatus.assistantPort)
+                }
+                Item { Layout.fillWidth: true }
+            }
+
+            FlatButton {
+                Layout.alignment: Qt.AlignLeft
+                text: qsTrc("aistudio", "Save")
+                onClicked: AIStudioStatus.setAssistantConfig(root.assistantMode, assistantUrlField.text, assistantModelField.text,
+                                                              assistantKeyField.text, assistantRunnerField.text,
+                                                              assistantModelFileField.text, Number(assistantPortField.text))
             }
 
             StyledTextLabel {
@@ -361,7 +453,7 @@ Item {
                 opacity: 0.7
                 text: AIStudioStatus.assistantStatus.length > 0
                       ? AIStudioStatus.assistantStatus
-                      : qsTrc("aistudio", "Any OpenAI-compatible endpoint (OpenRouter by default); used by the prompt and lyric buttons.")
+                      : qsTrc("aistudio", "Cloud posts to any OpenAI-compatible endpoint; Local launches your runner with the chosen model file.")
             }
 
             // Reload a saved generation's inputs (from "Reuse Prompt").

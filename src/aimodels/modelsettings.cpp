@@ -182,9 +182,13 @@ AssistantConfig ModelSettings::assistant()
 {
     AssistantConfig config;
     const QJsonObject object = readRoot().value(QStringLiteral("assistant")).toObject();
+    config.mode = object.value(QStringLiteral("mode")).toString(config.mode);
     config.baseUrl = object.value(QStringLiteral("baseUrl")).toString(config.baseUrl);
     config.apiKey = object.value(QStringLiteral("apiKey")).toString(config.apiKey);
     config.model = object.value(QStringLiteral("model")).toString(config.model);
+    config.runnerPath = object.value(QStringLiteral("runnerPath")).toString(config.runnerPath);
+    config.modelPath = object.value(QStringLiteral("modelPath")).toString(config.modelPath);
+    config.port = object.value(QStringLiteral("port")).toInt(config.port);
     return config;
 }
 
@@ -192,9 +196,13 @@ bool ModelSettings::setAssistant(const AssistantConfig& config, QString* errorMe
 {
     QJsonObject root = readRoot();
     QJsonObject object;
+    object.insert(QStringLiteral("mode"), config.mode);
     object.insert(QStringLiteral("baseUrl"), config.baseUrl);
     object.insert(QStringLiteral("apiKey"), config.apiKey);
     object.insert(QStringLiteral("model"), config.model);
+    object.insert(QStringLiteral("runnerPath"), config.runnerPath);
+    object.insert(QStringLiteral("modelPath"), config.modelPath);
+    object.insert(QStringLiteral("port"), config.port);
     root.insert(QStringLiteral("assistant"), object);
 
     const QString path = configFilePath();

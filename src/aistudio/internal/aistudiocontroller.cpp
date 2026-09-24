@@ -249,8 +249,10 @@ void AIStudioController::init()
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::writeLyricsRequested,
                      m_runtimeHost.get(), [this](const QString& style) { writeLyrics(style); });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::assistantConfigRequested,
-                     m_runtimeHost.get(), [this](const QString& baseUrl, const QString& model, const QString& apiKey) {
-        setAssistantConfig(baseUrl, model, apiKey);
+                     m_runtimeHost.get(), [this](const QString& mode, const QString& baseUrl, const QString& model,
+                                                 const QString& apiKey, const QString& runnerPath, const QString& modelPath,
+                                                 int port) {
+        setAssistantConfig(mode, baseUrl, model, apiKey, runnerPath, modelPath, port);
     });
     QObject::connect(AIStudioStatusModel::instance(), &AIStudioStatusModel::importPromptRequested,
                      m_runtimeHost.get(), [this](const QString& path) { importPromptFile(path); });
@@ -1562,11 +1564,18 @@ void AIStudioController::runAssistant(const QString& field, const QString& syste
     });
 }
 
-void AIStudioController::setAssistantConfig(const QString& baseUrl, const QString& model, const QString& apiKey)
+void AIStudioController::setAssistantConfig(const QString& mode, const QString& baseUrl, const QString& model,
+                                            const QString& apiKey, const QString& runnerPath, const QString& modelPath, int port)
 {
     au::aimodels::AssistantConfig config = au::aimodels::ModelSettings::assistant();
+    config.mode = mode.trimmed().isEmpty() ? QStringLiteral("cloud") : mode.trimmed();
     config.baseUrl = baseUrl.trimmed();
     config.model = model.trimmed();
+    config.runnerPath = runnerPath.trimmed();
+    config.modelPath = modelPath.trimmed();
+    if (port > 0) {
+        config.port = port;
+    }
     if (!apiKey.isEmpty()) {
         config.apiKey = apiKey;
     }
@@ -1582,7 +1591,9 @@ void AIStudioController::setAssistantConfig(const QString& baseUrl, const QStrin
 void AIStudioController::applyAssistantSettings()
 {
     const au::aimodels::AssistantConfig config = au::aimodels::ModelSettings::assistant();
-    AIStudioStatusModel::instance()->updateAssistantConfig(config.baseUrl, config.model, !config.apiKey.trimmed().isEmpty());
+    AIStudioStatusModel::instance()->updateAssistantConfig(
+        config.mode, config.baseUrl, config.model, !config.apiKey.trimmed().isEmpty(),
+        config.runnerPath, config.modelPath, config.port);
 }
 
 void AIStudioController::importPendingResults()
